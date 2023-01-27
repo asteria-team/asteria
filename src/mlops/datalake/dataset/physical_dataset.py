@@ -4,6 +4,7 @@ PhysicalDataset class implementation.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict
 
@@ -70,3 +71,20 @@ class PhysicalDataset:
 
     def _verify_integrity(self):
         raise NotImplementedError("Not implemented.")
+
+
+# -----------------------------------------------------------------------------
+# PhysicalDatasetMetadata
+# -----------------------------------------------------------------------------
+
+
+@dataclass
+class PhysicalDatasetMetadata:
+    domain: DatasetDomain = None
+    """The dataset domain."""
+
+    type: DatasetType = None
+    """The dataset type."""
+
+    identifier: str = None
+    """The dataset identifier."""

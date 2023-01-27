@@ -4,9 +4,19 @@ ComputerVisionDataset definition.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Dict
 
-from ..physical_dataset import DatasetDomain, DatasetType, PhysicalDataset
+from ..physical_dataset import (
+    DatasetDomain,
+    DatasetType,
+    PhysicalDataset,
+    PhysicalDatasetMetadata,
+)
+
+# -----------------------------------------------------------------------------
+# ComputerVisionDatasetType
+# -----------------------------------------------------------------------------
 
 
 class ComputerVisionDatasetType(DatasetType):
@@ -25,9 +35,24 @@ class ComputerVisionDatasetType(DatasetType):
         raise RuntimeError(f"Invalid dataset type: {data['type']}.")
 
 
+# -----------------------------------------------------------------------------
+# ComputerVisionDataset
+# -----------------------------------------------------------------------------
+
+
 class ComputerVisionDataset(PhysicalDataset):
     def __init__(self, type: ComputerVisionDatasetType, identifier: str):
         super().__init__(DatasetDomain.COMPUTER_VISION, type, identifier)
 
     def _verify_integrity(self):
         raise NotImplementedError("Not implemented.")
+
+
+# -----------------------------------------------------------------------------
+# ComputerVisionDatasetMetadata
+# -----------------------------------------------------------------------------
+
+
+@dataclass
+class ComputerVisionDatasetMetadata(PhysicalDatasetMetadata):
+    pass

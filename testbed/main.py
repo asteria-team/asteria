@@ -17,8 +17,6 @@ EXIT_FAILURE = 1
 def main() -> int:
     d = dl.ObjectDetectionDataset("id")
     d.add_image(dl.Image("hello"))
-    d.add_annotation(dl.ObjectDetectionAnnotation.from_json({}))
-    d.save()
     return EXIT_SUCCESS
 
 

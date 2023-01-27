@@ -7,10 +7,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from mlops.datalake._global import global_state
-
+from ..._global import global_state
+from ..physical_dataset import DatasetDomain, DatasetType
 from .computer_vision_dataset import (
     ComputerVisionDataset,
+    ComputerVisionDatasetMetadata,
     ComputerVisionDatasetType,
 )
 from .image import Image
@@ -70,20 +71,28 @@ class ObjectDetectionAnnotation:
 
 
 @dataclass
-class ObjectDetectionDatasetMetadata:
+class ObjectDetectionDatasetMetadata(ComputerVisionDatasetMetadata):
     tags: List[str] = field(default_factory=lambda: [])
     """A list of descriptive tags for the dataset."""
 
     def to_json(self) -> Dict[str, Any]:
         """Serialize to JSON."""
-        return {"tags": [tag for tag in self.tags]}
+        return {
+            "domain": self.domain.to_json(),
+            "type": self.type.to_json(),
+            "identifier": self.identifier,
+            "tags": [tag for tag in self.tags],
+        }
 
     @staticmethod
     def from_json(data: Dict[str, Any]) -> ObjectDetectionDatasetMetadata:
         """Deserialize from JSON."""
         assert "tags" in data, "Broken precondition."
         return ObjectDetectionDatasetMetadata(
-            tags=[tag for tag in data["tags"]]
+            domain=DatasetDomain.from_json(data["domain"]),
+            type=DatasetType.from_json(data["type"]),
+            identifier=data["identifier"],
+            tags=[tag for tag in data["tags"]],
         )
 
 
@@ -138,7 +147,6 @@ class ObjectDetectionDataset(ComputerVisionDataset):
         global_state().datalake_init()
 
         pdatasets = global_state().pdataset_path()
-        assert pdatasets.is_dir(), "Broken invariant."
 
         # Create the dataset directory, if necessary
         dataset_dir = pdatasets / self.identifier
@@ -146,6 +154,16 @@ class ObjectDetectionDataset(ComputerVisionDataset):
             dataset_dir.mkdir()
 
         # Establish the current state of the metadata file
+
+    def _load(self):
+        """Load data from data lake."""
+        global_state().check_initialized()
+
+        dataset_dir = global_state().pdataset_path() / self.identifier
+
+        # If the dataset does not yet exist, nothing to do
+        if not dataset_dir.is_dir():
+            return
 
     def _verify_integrity(self):
         raise NotImplementedError("Not implemented.")

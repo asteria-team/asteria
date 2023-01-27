@@ -4,7 +4,7 @@ Image class definition.
 
 import os
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Union
 
 import PIL
 
@@ -12,8 +12,8 @@ import PIL
 class Image:
     """Image represents an image on disk."""
 
-    def __init__(self, path: Path):
-        self.path = path
+    def __init__(self, path: Union[Path, str]):
+        self.path = path if isinstance(path, Path) else Path(path)
         """The path to the image on disk."""
 
     @property

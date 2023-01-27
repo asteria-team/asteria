@@ -72,10 +72,10 @@ class GlobalState:
 
     def datalake_init(self):
         """Initialize the data lake."""
-        self._check_initialized()
+        self.check_initialized()
         self._allocate_if_required()
 
-    def _check_initialized(self):
+    def check_initialized(self):
         """Determine if the global context is initialized."""
         if not self.has_path():
             raise RuntimeError(
