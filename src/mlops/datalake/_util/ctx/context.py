@@ -38,14 +38,14 @@ class GlobalState:
         self._path: Path = None
 
     def has_path(self) -> bool:
-        return self.path is not None
+        return self._path is not None
 
     def set_path(self, path: Path):
-        self.path = path
+        self._path = path
 
     def get_path(self) -> Path:
         assert self.has_path(), "Broken precondition."
-        return self.path
+        return self._path
 
 
 # Singleton global state

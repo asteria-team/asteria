@@ -1,5 +1,5 @@
 """
-Top-level package exports.
+Datalake sub-package exports.
 """
 
 # Export top-level context management
