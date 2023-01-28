@@ -153,7 +153,7 @@ def _deallocate():
     assert not _is_allocated(), "Broken postcondition."
 
 
-def _is_allocated(self) -> bool:
+def _is_allocated() -> bool:
     """
     Determine if the data lake is allocated.
 
@@ -168,7 +168,7 @@ def _is_allocated(self) -> bool:
     )
 
 
-def _allocate_if_required(self):
+def _allocate_if_required():
     """Allocate the data lake, if required."""
     if not _is_allocated():
         _allocate()

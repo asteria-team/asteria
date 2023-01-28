@@ -19,5 +19,5 @@ class NaturalLanguageProcessingDataset(PhysicalDataset):
             DatasetDomain.NATURAL_LANGUAGE_PROCESSING, type, identifier
         )
 
-    def _verify_integrity(self):
+    def verify_integrity(self):
         raise NotImplementedError("Not implemented.")

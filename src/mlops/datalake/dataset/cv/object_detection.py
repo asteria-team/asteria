@@ -11,13 +11,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Union
 
 import mlops.datalake._util as util
+from mlops.datalake.exception import IntegrityError
 
-from ..physical_dataset import DatasetDomain, DatasetType
-from .computer_vision_dataset import (
-    ComputerVisionDataset,
-    ComputerVisionDatasetMetadata,
-    ComputerVisionDatasetType,
+from ..physical_dataset import (
+    DatasetDomain,
+    DatasetType,
+    PhysicalDataset,
+    PhysicalDatasetMetadata,
 )
+from .computer_vision import ComputerVisionDatasetType
 from .image import Image
 
 # -----------------------------------------------------------------------------
@@ -148,6 +150,31 @@ class ObjectDetectionAnnotation:
             identifier=identifier, objects=objects, persisted=True
         )
 
+    @staticmethod
+    def from_ls_json(data: Dict[str, Any]) -> ObjectDetectionAnnotation:
+        """
+        Parse ObjectDetectionAnnotation from Label Studio JSON.
+
+        :param data: The JSON data
+        :type data: Dict[str, Any]
+
+        :return: The parsed annotation
+        :rtype: ObjectDetectionAnnotation
+        """
+        # Parse the identifier
+        if "data" not in data:
+            raise RuntimeError("Failed to parse.")
+        if "image" not in data["data"]:
+            raise RuntimeError("Failed to parse.")
+        identifier = _basename(data["data"]["image"])
+
+        # Parse objects
+        if "annotations" not in data:
+            raise RuntimeError("Failed to parse.")
+        objects = [_object_from_ls_json(e) for e in data["annotations"]]
+
+        return ObjectDetectionAnnotation(identifier=identifier, objects=objects)
+
     def __key(self) -> str:
         return self.id
 
@@ -163,18 +190,52 @@ class ObjectDetectionAnnotation:
         return not self.__eq__(other)
 
 
+def _object_from_ls_json(data: Dict[str, Any]) -> Object:
+    """
+    Parse an Object from Label Studio JSON.
+
+    :param data: The JSON data
+    :type data: Dict[str, Any]
+
+    :return: The parsed object
+    :rtype: Object
+    """
+    if "result" not in data:
+        raise RuntimeError("Failed to parse.")
+
+    result = data["result"][0]
+    if "value" not in result:
+        raise RuntimeError("Failed to parse.")
+
+    value = result["value"]
+    if "rectanglelabels" not in value:
+        raise RuntimeError("Failed to parse.")
+
+    classname = value["rectanglelabels"][0]
+    return Object(
+        classname=classname,
+        bbox=BoundingBox(
+            xmin=value["x"],
+            ymin=value["y"],
+            width=value["width"],
+            height=value["height"],
+        ),
+    )
+
+
 # -----------------------------------------------------------------------------
 # ObjectDetectionDatasetMetadata
 # -----------------------------------------------------------------------------
 
 
 @dataclass
-class ObjectDetectionDatasetMetadata(ComputerVisionDatasetMetadata):
+class ObjectDetectionDatasetMetadata(PhysicalDatasetMetadata):
     tags: List[str] = field(default_factory=lambda: [])
     """A list of descriptive tags for the dataset."""
 
     def to_json(self) -> Dict[str, Any]:
         """Serialize to JSON."""
+        self._check()
         return {
             "domain": self.domain.to_json(),
             "type": self.type.to_json(),
@@ -193,17 +254,31 @@ class ObjectDetectionDatasetMetadata(ComputerVisionDatasetMetadata):
             tags=[tag for tag in data["tags"]],
         )
 
+    def _check(self):
+        """
+        Check that the metadata object is populated.
+
+        :raises IncompleteError
+        """
+        super()._check()
+
 
 # -----------------------------------------------------------------------------
 # ObjectDetectionDataset
 # -----------------------------------------------------------------------------
 
 
-class ObjectDetectionDataset(ComputerVisionDataset):
+class ObjectDetectionDataset(PhysicalDataset):
     def __init__(self, identifier: str):
-        super().__init__(ComputerVisionDatasetType.OBJECT_DETECTION, identifier)
+        super().__init__(
+            DatasetDomain.COMPUTER_VISION,
+            ComputerVisionDatasetType.OBJECT_DETECTION,
+            identifier,
+        )
 
-        self.metadata = ObjectDetectionDatasetMetadata()
+        self.metadata = ObjectDetectionDatasetMetadata(
+            domain=self.domain, type=self.type, identifier=self.identifier
+        )
         """Metadata for the dataset."""
 
         self._images: List[Image] = []
@@ -243,8 +318,6 @@ class ObjectDetectionDataset(ComputerVisionDataset):
 
     def save(self):
         """Persist the dataset to the underlying data lake."""
-        util.ctx.datalake_init()
-
         pdatasets = util.ctx.pdataset_path()
 
         # Create the dataset directory, if necessary
@@ -258,8 +331,6 @@ class ObjectDetectionDataset(ComputerVisionDataset):
 
     def _load(self):
         """Load data from data lake."""
-        util.ctx.check_initialized()
-
         dataset_dir = util.ctx.pdataset_path() / self.identifier
 
         # If the dataset does not yet exist, nothing to do
@@ -275,8 +346,18 @@ class ObjectDetectionDataset(ComputerVisionDataset):
         # Load annotations
         self._annotations = _load_annotations(dataset_dir)
 
-    def _verify_integrity(self):
-        raise NotImplementedError("Not implemented.")
+    def verify_integrity(self):
+        """
+        Verify the integrity of the ObjectDetectionDataset.
+
+        :raises: IntegrityError
+        """
+        datasets_dir = util.ctx.pdataset_path()
+        assert datasets_dir.is_dir(), "Broken invariant."
+
+        _verify_integrity(
+            datasets_dir / self.identifier, self._images, self._annotations
+        )
 
 
 # -----------------------------------------------------------------------------
@@ -403,6 +484,135 @@ def _load_annotations(dataset_dir: Path) -> List[ObjectDetectionAnnotation]:
         ObjectDetectionAnnotation.from_file(p)
         for p in annotations_dir.glob("*.txt")
     ]
+
+
+# -----------------------------------------------------------------------------
+# Integrity Verification
+# -----------------------------------------------------------------------------
+
+
+def _verify_integrity(
+    dataset_dir: Path,
+    images: List[Image],
+    annotations: List[ObjectDetectionAnnotation],
+):
+    """
+    Verify the integrity of the dataset.
+
+    :param dataset_dir: The path to the dataset
+    :type: dataset_dir: Path
+    :param images: The collection of images
+    :type images: List[Image]
+    :param annotations: The collection of annotations
+    :type annotations: List[ObjectDetectionAnnotation]
+
+    :raises: IntegrityError
+    """
+    if not dataset_dir.is_dir():
+        _verify_empty_dataset(dataset_dir, images, annotations)
+        return
+
+    # If the directory is present, metadata file should be present
+    metadata_path = dataset_dir / METADATA_FILENAME
+    if not metadata_path.is_file():
+        raise IntegrityError("Missing metadata.json file.")
+
+    _verify_persisted_images(dataset_dir, images)
+    _verify_persisted_annotations(dataset_dir, annotations)
+
+
+def _verify_empty_dataset(
+    dataset_dir: Path,
+    images: List[Image],
+    annotations: List[ObjectDetectionAnnotation],
+):
+    """
+    Verify the integrity of a completely empty dataset.
+
+    :param dataset_dir: The path to the dataset
+    :type: dataset_dir: Path
+    :param images: The collection of images
+    :type images: List[Image]
+    :param annotations: The collection of annotations
+    :type annotations: List[ObjectDetectionAnnotation]
+
+    :raises: IntegrityError
+    """
+    assert not dataset_dir.exists(), "Broken precondition."
+
+    # None of the images should be persisted if the dataset is empty
+    if any(image._persisted for image in images):
+        raise IntegrityError("Empty dataset contains a persisted image.")
+
+    # Likewise for annotations
+    if any(annotation._persisted for annotation in annotations):
+        raise IntegrityError("Empty dataset contains a persisted annotation.")
+
+
+def _verify_persisted_images(dataset_dir: Path, images: List[Image]):
+    """
+    Verify the integrity of persisted images.
+
+    :param dataset_dir: The path to the dataset
+    :type: dataset_dir: Path
+    :param images: The collection of images
+    :type images: List[Image]
+
+    :raises: IntegrityError
+    """
+    images_dir = dataset_dir / IMAGES_DIRNAME
+    assert images_dir.is_dir(), "Broken invariant."
+
+    # The number of persisted images should match
+    # the total count found on disk in data lake
+    in_memory = sum(1 for img in images if img._persisted)
+    on_disk = sum(1 for _ in images_dir.glob("*"))
+    if in_memory != on_disk:
+        raise IntegrityError(
+            f"Found {in_memory} images marked persisted in memory, {on_disk} on disk."
+        )
+
+    # Each image marked persisted should have corresponding file on disk
+    for img in filter(lambda i: i._persisted, images):
+        image_path = (images_dir / img.id).with_suffix(img.extension)
+        if not image_path.is_file():
+            raise IntegrityError(
+                f"Image {img.id} marked persisted in memory, not found on disk."
+            )
+
+
+def _verify_persisted_annotations(
+    dataset_dir: Path, annotations: List[ObjectDetectionAnnotation]
+):
+    """
+    Verify the integrity of persisted annotations.
+
+    :param dataset_dir: The path to the dataset
+    :type: dataset_dir: Path
+    :param annotations: The collection of annotations
+    :type annotations: List[ObjectDetectionAnnotation]
+
+    :raises: IntegrityError
+    """
+    annotations_dir = dataset_dir / ANNOTATIONS_DIRNAME
+    assert annotations_dir.is_dir(), "Broken invariant."
+
+    # The number of persisted annotations should match
+    # the total count found on disk in data lake
+    in_memory = sum(1 for a in annotations if a._persisted)
+    on_disk = sum(1 for _ in annotations_dir.glob("*.txt"))
+    if in_memory != on_disk:
+        raise IntegrityError(
+            f"Found {in_memory} annotations marked persisted in memory, {on_disk} on disk."
+        )
+
+    # Each annotation marked persisted should have a corresponding file on disk
+    for annotation in filter(lambda a: a._persisted, annotations):
+        annotation_path = (annotations_dir / annotation.id).with_suffix(".txt")
+        if not annotation_path.is_file():
+            raise IntegrityError(
+                f"Annotation {annotation.id} marked persisted in memory, not found on disk."
+            )
 
 
 # -----------------------------------------------------------------------------

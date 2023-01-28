@@ -4,9 +4,13 @@ PhysicalDataset class implementation.
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict
+
+import mlops.datalake._util as util
+from mlops.datalake.exception import IncompleteError
 
 # -----------------------------------------------------------------------------
 # DatasetDomain
@@ -54,7 +58,15 @@ class DatasetType(Enum):
 # -----------------------------------------------------------------------------
 
 
-class PhysicalDataset:
+def install_hook(func, hook):
+    def wrapper(*args, **kwargs):
+        hook()
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+class PhysicalDataset(ABC):
     """PhysicalDataset is the base class for all datasets that exist on disk."""
 
     def __init__(
@@ -69,8 +81,31 @@ class PhysicalDataset:
         self.identifier = identifier
         """The unique identifier for the PhysicalDataset instance."""
 
-    def _verify_integrity(self):
+        # Install hooks for core interface
+        self.save = install_hook(self.save, self._global_hook)
+        self._load = install_hook(self._load, self._global_hook)
+        self.verify_integrity = install_hook(
+            self.verify_integrity, self._global_hook
+        )
+
+    @abstractmethod
+    def save(self):
+        """Persist the dataset to the data lake."""
         raise NotImplementedError("Not implemented.")
+
+    @abstractmethod
+    def _load(self):
+        """Load the dataset from the data lake."""
+        raise NotImplementedError("Not implemented.")
+
+    @abstractmethod
+    def verify_integrity(self):
+        """Verify the integrity of the dataset."""
+        raise NotImplementedError("Not implemented.")
+
+    def _global_hook(self):
+        """Hook invocation of all core interface methods."""
+        util.ctx.datalake_init()
 
 
 # -----------------------------------------------------------------------------
@@ -88,3 +123,16 @@ class PhysicalDatasetMetadata:
 
     identifier: str = None
     """The dataset identifier."""
+
+    def _check(self):
+        """
+        Check that the metadata object is populated.
+
+        :raises: IncompleteError
+        """
+        if self.domain is None:
+            raise IncompleteError("Missing dataset 'domain'.")
+        if self.type is None:
+            raise IncompleteError("Missing dataset 'type'.")
+        if self.identifier is None:
+            raise IncompleteError("Missing dataset 'identifier'.")
