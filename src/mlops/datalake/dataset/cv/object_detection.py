@@ -7,7 +7,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from ..._global import global_state
+import mlops.datalake._util as util
+
 from ..physical_dataset import DatasetDomain, DatasetType
 from .computer_vision_dataset import (
     ComputerVisionDataset,
@@ -144,9 +145,9 @@ class ObjectDetectionDataset(ComputerVisionDataset):
 
     def save(self):
         """Persist the dataset to the underlying data lake."""
-        global_state().datalake_init()
+        util.ctx.datalake_init()
 
-        pdatasets = global_state().pdataset_path()
+        pdatasets = util.ctx.pdataset_path()
 
         # Create the dataset directory, if necessary
         dataset_dir = pdatasets / self.identifier
@@ -157,9 +158,9 @@ class ObjectDetectionDataset(ComputerVisionDataset):
 
     def _load(self):
         """Load data from data lake."""
-        global_state().check_initialized()
+        util.ctx.check_initialized()
 
-        dataset_dir = global_state().pdataset_path() / self.identifier
+        dataset_dir = util.ctx.pdataset_path() / self.identifier
 
         # If the dataset does not yet exist, nothing to do
         if not dataset_dir.is_dir():
