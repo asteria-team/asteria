@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Union
 
 import mlops.datalake._util as util
+from mlops.datalake._util.time import timestamp
 from mlops.datalake.exception import IntegrityError
 
 from ..physical_dataset import (
@@ -241,6 +242,8 @@ class ObjectDetectionDatasetMetadata(PhysicalDatasetMetadata):
             "domain": self.domain.to_json(),
             "type": self.type.to_json(),
             "identifier": self.identifier.to_json(),
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
             "tags": [tag for tag in self.tags],
         }
 
@@ -252,6 +255,8 @@ class ObjectDetectionDatasetMetadata(PhysicalDatasetMetadata):
             domain=DatasetDomain.from_json(data["domain"]),
             type=DatasetType.from_json(data["type"]),
             identifier=DatasetIdentifier.from_json(data["identifier"]),
+            created_at=data["created__at"],
+            updated_at=data["updated_at"],
             tags=[tag for tag in data["tags"]],
         )
 
@@ -377,6 +382,11 @@ def _save_metadata(dataset_dir: Path, metadata: ObjectDetectionDatasetMetadata):
     :type metadata: ObjectDetectionDatasetMetadata
     """
     assert dataset_dir.is_dir(), "Broken precondition."
+
+    # Update dataset times
+    if metadata.created_at is None:
+        metadata.created_at = timestamp()
+    metadata.updated_at = timestamp()
 
     metadata_path = dataset_dir / METADATA_FILENAME
     with metadata_path.open("w") as f:

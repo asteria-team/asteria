@@ -153,6 +153,12 @@ class PhysicalDatasetMetadata:
     identifier: DatasetIdentifier = None
     """The dataset identifier."""
 
+    created_at: int = None
+    """The timestamp at which the dataset was created."""
+
+    updated_at: int = None
+    """The timestamp at which the dataset was last updated."""
+
     def _check(self):
         """
         Check that the metadata object is populated.
@@ -165,3 +171,7 @@ class PhysicalDatasetMetadata:
             raise IncompleteError("Missing dataset 'type'.")
         if self.identifier is None:
             raise IncompleteError("Missing dataset 'identifier'.")
+        if self.created_at is None:
+            raise IncompleteError("Missing dataset 'created_at'.")
+        if self.updated_at is None:
+            raise IncompleteError("Missing dataset 'updated_at'.")
