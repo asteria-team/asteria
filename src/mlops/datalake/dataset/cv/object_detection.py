@@ -20,16 +20,13 @@ from ..physical_dataset import (
     DatasetType,
     PhysicalDataset,
     PhysicalDatasetMetadata,
+    PhysicalDatasetView,
 )
-from .computer_vision import ComputerVisionDatasetType
 from .image import Image
 
 # -----------------------------------------------------------------------------
 # Global Variables
 # -----------------------------------------------------------------------------
-
-# The name of the metadata file within each dataset
-METADATA_FILENAME = "metadata.json"
 
 # The name of the images directory within each dataset
 IMAGES_DIRNAME = "images"
@@ -255,7 +252,7 @@ class ObjectDetectionDatasetMetadata(PhysicalDatasetMetadata):
             domain=DatasetDomain.from_json(data["domain"]),
             type=DatasetType.from_json(data["type"]),
             identifier=DatasetIdentifier.from_json(data["identifier"]),
-            created_at=data["created__at"],
+            created_at=data["created_at"],
             updated_at=data["updated_at"],
             tags=[tag for tag in data["tags"]],
         )
@@ -279,7 +276,7 @@ class ObjectDetectionDataset(PhysicalDataset):
         identifier = DatasetIdentifier(identifier)
         super().__init__(
             DatasetDomain.COMPUTER_VISION,
-            ComputerVisionDatasetType.OBJECT_DETECTION,
+            DatasetType.OBJECT_DETECTION,
             identifier,
         )
 
@@ -368,6 +365,40 @@ class ObjectDetectionDataset(PhysicalDataset):
 
 
 # -----------------------------------------------------------------------------
+# ObjectDetectionDatasetView
+# -----------------------------------------------------------------------------
+
+
+class ObjectDetectionDatasetView(PhysicalDatasetView):
+    """A read-only view of an object detection dataset's metadata."""
+
+    def __init__(self, identifier: str):
+        identifier = DatasetIdentifier(identifier)
+        super().__init__(
+            DatasetDomain.COMPUTER_VISION,
+            DatasetType.OBJECT_DETECTION,
+            identifier,
+        )
+
+        self.metadata = ObjectDetectionDatasetMetadata(
+            domain=self.domain, type=self.type, identifier=self.identifier
+        )
+
+        self._load()
+
+    def _load(self):
+        """Load view from disk."""
+        dataset_dir = util.ctx.pdataset_path() / str(self.identifier)
+
+        # If the dataset does not yet exist, nothing to do
+        if not dataset_dir.is_dir():
+            return
+
+        # Load metadata
+        self.metadata = _load_metadata(dataset_dir)
+
+
+# -----------------------------------------------------------------------------
 # Save / Load
 # -----------------------------------------------------------------------------
 
@@ -388,7 +419,7 @@ def _save_metadata(dataset_dir: Path, metadata: ObjectDetectionDatasetMetadata):
         metadata.created_at = timestamp()
     metadata.updated_at = timestamp()
 
-    metadata_path = dataset_dir / METADATA_FILENAME
+    metadata_path = dataset_dir / util.ctx.metadata_filename()
     with metadata_path.open("w") as f:
         json.dump(metadata.to_json(), f)
 
@@ -452,7 +483,7 @@ def _load_metadata(dataset_dir: Path) -> ObjectDetectionDatasetMetadata:
     """
     assert dataset_dir.is_dir(), "Broken precondition."
 
-    metadata_path = dataset_dir / METADATA_FILENAME
+    metadata_path = dataset_dir / util.ctx.metadata_filename()
     if not metadata_path.is_file():
         return ObjectDetectionDatasetMetadata()
     with metadata_path.open("r") as f:
@@ -525,7 +556,7 @@ def _verify_integrity(
         return
 
     # If the directory is present, metadata file should be present
-    metadata_path = dataset_dir / METADATA_FILENAME
+    metadata_path = dataset_dir / util.ctx.metadata_filename()
     if not metadata_path.is_file():
         raise IntegrityError("Missing metadata.json file.")
 

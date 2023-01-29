@@ -18,6 +18,9 @@ _LOGICAL_DATASET_DIRNAME = "ldatasets"
 # The name of the directory in which model information is stored
 _MODEL_REGISTRY_DIRNAME = "models"
 
+# The name of the metadata file
+_METADATA_FILENAME = "metadata.json"
+
 # -----------------------------------------------------------------------------
 # Global State Management (Internal)
 # -----------------------------------------------------------------------------
@@ -91,6 +94,11 @@ def model_registry_path() -> Path:
     state = _global_state()
     assert state.has_path(), "Broken precondition."
     return state.get_path() / _MODEL_REGISTRY_DIRNAME
+
+
+def metadata_filename() -> str:
+    """Return the metadata filename for all datasets."""
+    return _METADATA_FILENAME
 
 
 # -----------------------------------------------------------------------------
