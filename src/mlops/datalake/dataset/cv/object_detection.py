@@ -15,6 +15,7 @@ from mlops.datalake.exception import IntegrityError
 
 from ..physical_dataset import (
     DatasetDomain,
+    DatasetIdentifier,
     DatasetType,
     PhysicalDataset,
     PhysicalDatasetMetadata,
@@ -239,7 +240,7 @@ class ObjectDetectionDatasetMetadata(PhysicalDatasetMetadata):
         return {
             "domain": self.domain.to_json(),
             "type": self.type.to_json(),
-            "identifier": self.identifier,
+            "identifier": self.identifier.to_json(),
             "tags": [tag for tag in self.tags],
         }
 
@@ -250,7 +251,7 @@ class ObjectDetectionDatasetMetadata(PhysicalDatasetMetadata):
         return ObjectDetectionDatasetMetadata(
             domain=DatasetDomain.from_json(data["domain"]),
             type=DatasetType.from_json(data["type"]),
-            identifier=data["identifier"],
+            identifier=DatasetIdentifier.from_json(data["identifier"]),
             tags=[tag for tag in data["tags"]],
         )
 
@@ -270,6 +271,7 @@ class ObjectDetectionDatasetMetadata(PhysicalDatasetMetadata):
 
 class ObjectDetectionDataset(PhysicalDataset):
     def __init__(self, identifier: str):
+        identifier = DatasetIdentifier(identifier)
         super().__init__(
             DatasetDomain.COMPUTER_VISION,
             ComputerVisionDatasetType.OBJECT_DETECTION,
@@ -321,7 +323,7 @@ class ObjectDetectionDataset(PhysicalDataset):
         pdatasets = util.ctx.pdataset_path()
 
         # Create the dataset directory, if necessary
-        dataset_dir = pdatasets / self.identifier
+        dataset_dir = pdatasets / str(self.identifier)
         if not dataset_dir.is_dir():
             dataset_dir.mkdir()
 
@@ -331,7 +333,7 @@ class ObjectDetectionDataset(PhysicalDataset):
 
     def _load(self):
         """Load data from data lake."""
-        dataset_dir = util.ctx.pdataset_path() / self.identifier
+        dataset_dir = util.ctx.pdataset_path() / str(self.identifier)
 
         # If the dataset does not yet exist, nothing to do
         if not dataset_dir.is_dir():
@@ -356,7 +358,7 @@ class ObjectDetectionDataset(PhysicalDataset):
         assert datasets_dir.is_dir(), "Broken invariant."
 
         _verify_integrity(
-            datasets_dir / self.identifier, self._images, self._annotations
+            datasets_dir / str(self.identifier), self._images, self._annotations
         )
 
 

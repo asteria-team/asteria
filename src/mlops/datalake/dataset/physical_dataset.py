@@ -54,6 +54,32 @@ class DatasetType(Enum):
 
 
 # -----------------------------------------------------------------------------
+# DatasetIdentifier
+# -----------------------------------------------------------------------------
+
+
+class DatasetIdentifier:
+    """A unique identifier for a dataset."""
+
+    def __init__(self, identifier: str):
+        self.id = identifier
+
+    def to_json(self) -> Dict[str, Any]:
+        """Serialize to JSON format."""
+        return {"identifier": self.id}
+
+    @staticmethod
+    def from_json(data: Dict[str, Any]) -> DatasetIdentifier:
+        """Deserialize from JSON format."""
+        assert "identifier" in data, "Broken precondition."
+        return DatasetIdentifier(data["identifier"])
+
+    def __str__(self) -> str:
+        """Convert to string."""
+        return self.id
+
+
+# -----------------------------------------------------------------------------
 # PhysicalDataset
 # -----------------------------------------------------------------------------
 
@@ -70,7 +96,10 @@ class PhysicalDataset(ABC):
     """PhysicalDataset is the base class for all datasets that exist on disk."""
 
     def __init__(
-        self, domain: DatasetDomain, type: DatasetType, identifier: str
+        self,
+        domain: DatasetDomain,
+        type: DatasetType,
+        identifier: DatasetIdentifier,
     ):
         self.domain = domain
         """A domain identifier for the dataset."""
@@ -121,7 +150,7 @@ class PhysicalDatasetMetadata:
     type: DatasetType = None
     """The dataset type."""
 
-    identifier: str = None
+    identifier: DatasetIdentifier = None
     """The dataset identifier."""
 
     def _check(self):
