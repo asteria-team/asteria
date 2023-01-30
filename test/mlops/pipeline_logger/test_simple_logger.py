@@ -1,13 +1,11 @@
 """
-Test everything in logging.
+Test simple logger without Loki handler in logging.
 """
 
 import mlops.pipeline_logger as pl
 
 
-def test_all():
-    # tests logging functionality without Loki implemented
-
+def test_simple_logger():
     # test logging capabilities without verbose
     test_logger1 = pl.PipelineLogger("test_suite")
     test_logger1.info("This info line should not show for logger1")

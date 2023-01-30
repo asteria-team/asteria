@@ -7,8 +7,15 @@ pipeline
 import socket
 
 from kafka import KafkaConsumer, KafkaProducer
-from .messaging import Stage_Status, json_serializer, json_deserializer, set_producer_consumer_type, build_kafka_json
+
 from ..pipeline_logger import PipelineLogger
+from .messaging import (
+    Stage_Status,
+    build_kafka_json,
+    json_deserializer,
+    json_serializer,
+    set_producer_consumer_type,
+)
 
 # Application exit codes
 EXIT_SUCCESS = 0
