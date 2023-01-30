@@ -43,25 +43,29 @@ def test_single_find(tmp_path):
     assert len(views) == 1
 
 
-# def test_single_count_with_filter(tmp_path):
-#     """Count with single item should return 1."""
+def test_single_count_with_filter(tmp_path):
+    """Count with single item should return 1."""
 
-#     dl.set_path(f"{tmp_path / 'dl'}")
+    dl.set_path(f"{tmp_path / 'dl'}")
 
-#     d = dl.ObjectDetectionDataset("id")
-#     d.save()
+    d = dl.ObjectDetectionDataset("id")
+    d.save()
 
-#     count = dl.pdatasets().count({"identifier": "id"})
-#     assert count == 1
+    count = dl.pdatasets().count(
+        {"$eq": [{"$field": "identifier"}, {"$lit": "id"}]}
+    )
+    assert count == 1
 
 
-# def test_single_find_with_filter(tmp_path):
-#     """Find with single item should return it."""
+def test_single_find_with_filter(tmp_path):
+    """Find with single item should return it."""
 
-#     dl.set_path(f"{tmp_path / 'dl'}")
+    dl.set_path(f"{tmp_path / 'dl'}")
 
-#     d = dl.ObjectDetectionDataset("id")
-#     d.save()
+    d = dl.ObjectDetectionDataset("id")
+    d.save()
 
-#     views = dl.pdatasets().find({"identifier": "id"})
-#     assert len(views) == 1
+    views = dl.pdatasets().find(
+        {"$eq": [{"$field": "identifier"}, {"$lit": "id"}]}
+    )
+    assert len(views) == 1
