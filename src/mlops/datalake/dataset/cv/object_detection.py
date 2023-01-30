@@ -14,14 +14,13 @@ import mlops.datalake._util as util
 from mlops.datalake._util.time import timestamp
 from mlops.datalake.exception import IntegrityError
 
-from ..physical_dataset import (
+from ..metadata import (
     DatasetDomain,
     DatasetIdentifier,
+    DatasetMetadata,
     DatasetType,
-    PhysicalDataset,
-    PhysicalDatasetMetadata,
-    PhysicalDatasetView,
 )
+from ..physical_dataset import PhysicalDataset, PhysicalDatasetView
 from .image import Image
 
 # -----------------------------------------------------------------------------
@@ -228,7 +227,7 @@ def _object_from_ls_json(data: Dict[str, Any]) -> Object:
 
 
 @dataclass
-class ObjectDetectionDatasetMetadata(PhysicalDatasetMetadata):
+class ObjectDetectionDatasetMetadata(DatasetMetadata):
     tags: List[str] = field(default_factory=lambda: [])
     """A list of descriptive tags for the dataset."""
 
@@ -256,6 +255,47 @@ class ObjectDetectionDatasetMetadata(PhysicalDatasetMetadata):
             updated_at=data["updated_at"],
             tags=[tag for tag in data["tags"]],
         )
+
+    @staticmethod
+    def from_file(path: Path) -> ObjectDetectionDatasetMetadata:
+        """
+        Load a ObjectDetectionDatasetMetadata instance from file.
+
+        :param path: The path the metadata file
+        :type path: Path
+
+        :return: The loaded instance
+        :rtype: ObjectDetectionDatasetMetadata
+        """
+        assert path.is_file(), "Broken precondition."
+        assert path.name == "metadata.json", "Broken precondition."
+
+        with path.open("r") as f:
+            return ObjectDetectionDatasetMetadata.from_json(json.load(f))
+
+    def merge(
+        self, other: ObjectDetectionDatasetMetadata
+    ) -> ObjectDetectionDatasetMetadata:
+        """
+        Merge metadata from two datasets.
+
+        :param other: Input metadata object
+        :type other: ObjectDetectionDatasetMetadata
+
+        :return: The merged metadata object
+        :rtype: ObjectDetectionMetadata
+        """
+        assert self.domain == other.domain, "Broken precondition."
+        assert self.type == other.type, "Broken precondition."
+
+        result = ObjectDetectionDatasetMetadata()
+        # Carry domain
+        result.domain = self.domain
+        # Carry type
+        result.type = self.type
+        # Merge tags
+        result.tags = [t for m in [self, other] for t in m.tags]
+        return result
 
     def _check(self):
         """
@@ -322,10 +362,8 @@ class ObjectDetectionDataset(PhysicalDataset):
 
     def save(self):
         """Persist the dataset to the underlying data lake."""
-        pdatasets = util.ctx.pdataset_path()
-
         # Create the dataset directory, if necessary
-        dataset_dir = pdatasets / str(self.identifier)
+        dataset_dir = util.ctx.pdataset_path() / str(self.identifier)
         if not dataset_dir.is_dir():
             dataset_dir.mkdir()
 

@@ -10,11 +10,8 @@ import mlops.datalake._util as util
 
 # Import all dataset types from cv
 from ..dataset.cv import ObjectDetectionDatasetView
-from ..dataset.physical_dataset import (
-    DatasetType,
-    PhysicalDatasetMetadata,
-    PhysicalDatasetView,
-)
+from ..dataset.metadata import DatasetMetadata, DatasetType
+from ..dataset.physical_dataset import PhysicalDatasetView
 from .filter_document import FilterDocument
 
 # -----------------------------------------------------------------------------
@@ -82,7 +79,7 @@ def _load_view_for_dataset(dataset_path: Path) -> PhysicalDatasetView:
     if not metadata_path.is_file():
         raise RuntimeError("Missing metadata file.")
 
-    meta = PhysicalDatasetMetadata.from_file(metadata_path)
+    meta = DatasetMetadata.from_file(metadata_path)
     if meta.type == DatasetType.OBJECT_DETECTION:
         return ObjectDetectionDatasetView(_basename(dataset_path))
     else:

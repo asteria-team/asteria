@@ -47,7 +47,7 @@ def test_annotation_parse_corrupt0():
 
 
 # -----------------------------------------------------------------------------
-# Dataset Construction
+# Physical Dataset Construction
 # -----------------------------------------------------------------------------
 
 
@@ -83,4 +83,51 @@ def test_save_no_data(tmp_path):
     dl.set_path(f"{tmp_path / 'dl'}")
 
     d = dl.ObjectDetectionDataset("id")
+    d.save()
+
+
+# -----------------------------------------------------------------------------
+# Logical Dataset Construction
+# -----------------------------------------------------------------------------
+
+
+def test_logical0(tmp_path):
+    """Construction should succeed."""
+    dl.set_path(f"{tmp_path / 'dl'}")
+
+    _ = dl.LogicalDataset("id")
+
+
+def test_logical1(tmp_path):
+    """Adding split that does not exist should raise."""
+    dl.set_path(f"{tmp_path / 'dl'}")
+
+    d = dl.LogicalDataset("id")
+    with pytest.raises(RuntimeError):
+        d.add_split({"train": ["id0"]})
+
+
+def test_logical2(tmp_path):
+    """Adding split that exists should succeed."""
+    dl.set_path(f"{tmp_path / 'dl'}")
+
+    d = dl.ObjectDetectionDataset("id0")
+    d.save()
+
+    d = dl.LogicalDataset("id")
+    d.add_split({"train": ["id0"]})
+
+
+def test_logical3(tmp_path):
+    """Adding split that exists should succeed."""
+    dl.set_path(f"{tmp_path / 'dl'}")
+
+    d = dl.ObjectDetectionDataset("id0")
+    d.save()
+
+    d = dl.ObjectDetectionDataset("id1")
+    d.save()
+
+    d = dl.LogicalDataset("id")
+    d.add_split({"train": ["id0", "id1"]})
     d.save()
