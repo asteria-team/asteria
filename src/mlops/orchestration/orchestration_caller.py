@@ -11,7 +11,7 @@ the appropriate python wrapper for the orchestration
 tool in use.
 """
 
-
+from ..pipeline_logger import PipelineLogger
 
 # -------------------------------------------------
 # Helper Functions
