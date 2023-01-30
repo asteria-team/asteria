@@ -9,33 +9,13 @@ from typing import Any, Dict, List, Union
 import mlops.datalake._util as util
 
 # Import all dataset types from cv
-from ..cv import ObjectDetectionDatasetView
-from ..physical_dataset import (
+from ..dataset.cv import ObjectDetectionDatasetView
+from ..dataset.physical_dataset import (
     DatasetType,
     PhysicalDatasetMetadata,
     PhysicalDatasetView,
 )
-
-# -----------------------------------------------------------------------------
-# QueryFilter
-# -----------------------------------------------------------------------------
-
-
-class QueryFilter:
-    """Represents a filter supplied to a query."""
-
-    def __init__(self, filter: Dict[str, Any]):
-        self.predicates = [QueryPredicate(k, v) for k, v in filter.items()]
-        """Decompose the filter into predicates."""
-
-
-class QueryPredicate:
-    """Represents an individual predicate within a query."""
-
-    def __init__(self, key: str, value: Any):
-        self.k = key
-        self.v = value
-
+from .filter_document import FilterDocument
 
 # -----------------------------------------------------------------------------
 # Physical Dataset Queries
@@ -57,23 +37,25 @@ class PhysicalDatasetCollection:
 
     def count(self, filter: Dict[str, Any]) -> int:
         """Perform a query to count the number of datasets matching the given filter."""
-        filter = QueryFilter(filter)
+        filter = FilterDocument.parse(filter)
         return sum(1 for _ in _find(self.datasets_dir, filter))
 
     def find(self, filter: Dict[str, Any]) -> List[PhysicalDatasetView]:
         """Perform a query to collect a view for each dataset matching the given filter."""
-        filter = QueryFilter(filter)
+        filter = FilterDocument.parse(filter)
         return _find(self.datasets_dir, filter)
 
 
-def _find(datasets_dir: Path, filter: QueryFilter) -> List[PhysicalDatasetView]:
+def _find(
+    datasets_dir: Path, filter: FilterDocument
+) -> List[PhysicalDatasetView]:
     """
     Load a view for each dataset matching the provided filter.
 
     :param datasets_dir: The path at which physical datasets are stored
     :type datasets_dir: Path
     :param filter: The filter to apply
-    :type filter: QueryFilter
+    :type filter: FilterDocument
     """
     assert datasets_dir.is_dir(), "Broken precondition."
     views = [
@@ -107,7 +89,9 @@ def _load_view_for_dataset(dataset_path: Path) -> PhysicalDatasetView:
         raise RuntimeError(f"Unknown dataset type: {meta.type}")
 
 
-def _satisfies_filter(view: PhysicalDatasetView, filter: QueryFilter) -> bool:
+def _satisfies_filter(
+    view: PhysicalDatasetView, filter: FilterDocument
+) -> bool:
     """
     Determine if a view satisfies the given filter.
 
@@ -119,35 +103,7 @@ def _satisfies_filter(view: PhysicalDatasetView, filter: QueryFilter) -> bool:
     :return: `True` if filter is satisfied, `False` otherwise
     :rtype: bool
     """
-    return all(
-        _satisfies_predicate(view, predicate) for predicate in filter.predicates
-    )
-
-
-def _satisfies_predicate(
-    view: PhysicalDatasetView, predicate: QueryPredicate
-) -> bool:
-    """
-    Determine if a view satisfies the given predicate.
-
-    :param view: The dataset view
-    :type view: PhysicalDatasetView
-    :param predicate: The predicate to apply
-    :type predicate: QueryPredicate
-
-    :return `True` if the predicate is satisfied, `False` otherwise
-    :rtype: bool
-    """
-    # Extract the raw JSON from metadata
-    metadata = view.metadata.to_json()
-    if predicate.k not in metadata:
-        # Vacuously satisfied
-        return True
-
-    # Work-around for the weird way we serialize these
-    if predicate.k in ["domain", "type", "identifier"]:
-        return metadata[predicate.k][predicate.k] == predicate.v
-    return metadata[predicate.k] == predicate.v
+    return filter.evaluate(view.metadata.to_json())
 
 
 # -----------------------------------------------------------------------------

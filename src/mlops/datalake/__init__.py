@@ -15,11 +15,16 @@ from mlops.datalake.dataset.cv import (
 # Export logical dataset
 from mlops.datalake.dataset.logical_dataset import LogicalDataset
 
-# Export top-level queries
-from mlops.datalake.dataset.query import pdatasets
-
 # Export all exception types
-from mlops.datalake.exception import IncompleteError, IntegrityError
+from mlops.datalake.exception import (
+    EvaluationError,
+    IncompleteError,
+    IntegrityError,
+    ParseError,
+)
+
+# Export query types and collection handles
+from mlops.datalake.query import FilterDocument, pdatasets
 
 __all__ = [
     "set_path",
@@ -28,6 +33,9 @@ __all__ = [
     "ObjectDetectionAnnotation",
     "LogicalDataset",
     "pdatasets",
+    "FilterDocument",
     "IntegrityError",
     "IncompleteError",
+    "ParseError",
+    "EvaluationError",
 ]
