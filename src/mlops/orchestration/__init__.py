@@ -1,3 +1,3 @@
-from .orchestration_caller import Consumer, Producer
+from .orchestration_caller import Admin, Consumer, Producer
 
-__all__ = ["Consumer", "Producer"]
+__all__ = ["Admin", "Consumer", "Producer"]

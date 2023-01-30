@@ -7,6 +7,7 @@ pipeline
 import socket
 
 from confluent_kafka import Consumer, Producer
+from ..pipeline_logger import PipelineLogger
 
 # Application exit codes
 EXIT_SUCCESS = 0

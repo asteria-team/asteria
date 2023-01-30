@@ -46,7 +46,7 @@ def build_base_logger(service: str, verbose: bool):
     """
     # create logger
     new_logger = logging.getLogger(f"{service}-logger")
-    new_logger.setLevel(logging.DEBUG if verbose else logging.ERROR)
+    new_logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
 
     # build stdout handler
     stdout_hand = logging.StreamHandler(sys.stdout)
@@ -104,12 +104,14 @@ class PipelineLogger:
         else:
             self.logger.debug(msg)
 
-    def info(self, msg: str, add_tags: List[str] = None):
+    def info(self, message: str, add_tags: List[str] = None):
         """Log an informational message"""
         if add_tags is not None:
-            self.logger.info(msg, extra={"tags": {"additional_tags": add_tags}})
+            self.logger.info(
+                message, extra={"tags": {"additional_tags": add_tags}}
+            )
         else:
-            self.logger.info(msg)
+            self.logger.info(message)
 
     def warn(self, msg: str, add_tags: List[str] = None):
         """Log a warning message"""

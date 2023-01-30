@@ -11,6 +11,8 @@ the appropriate python wrapper for the orchestration
 tool in use.
 """
 
+
+
 # -------------------------------------------------
 # Helper Functions
 # -------------------------------------------------
@@ -36,11 +38,35 @@ def establish_connection():
 
 class Producer:
     def __init__(self):
+        # determine underlying orchestrator
         self.orchestrator = get_orchestrator()
+        # establish connection to orchestrator based on the service
+        # create the correct version of the producer based on the service
         pass
+
+    # all subsequent functionality simply act as a redirect to the
+    # appropriate underlying orchestration wrapper
 
 
 class Consumer:
     def __init__(self):
+        # determine underlying orchestrator
         self.orchestrator = get_orchestrator()
+        # establish connection to orchestrator based on the service
+        # create the correct version of the consumer based on the service
         pass
+
+    # all subsequent functionality simply act as a redirect to the
+    # appropriate underlying orchestration wrapper
+
+
+class Admin:
+    def __init__(self):
+        # determine underlying orchestrator
+        self.orchestrator = get_orchestrator()
+        # establish connection to orchestrator based on the service
+        # create the correct version of the admin based on the service
+        pass
+
+    # all subsequent functionality simply act as a redirect to the
+    # appropriate underlying orchestration wrapper
