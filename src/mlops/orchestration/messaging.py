@@ -136,7 +136,7 @@ def set_producer_consumer_type(user_input: str) -> str:
         if user_input.lower() in [opt for opt in options]:
             return pc_type
     logging.error(f"Type {user_input} is not recognized. Failed to set type")
-    return None
+    return "unknown"
 
 
 # -----------------------------------------------
@@ -147,7 +147,7 @@ def set_producer_consumer_type(user_input: str) -> str:
 def build_kafka_json(msg_type, producer: str, **kwargs) -> Dict[str, str]:
     """
     Builds a dictionary message for kafka producers
-    - :param msg_type: message status (required)
+    - :param msg_type: message status (status of the tool) (required)
     - :param producer: tool that sent the message (required)
     - :param stage: additional information about the status (optional)
     - :param output: output information from the event if any (optional)

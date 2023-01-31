@@ -1,9 +1,8 @@
 """
-Test messaging structure (serialization, deserialization, and message building)
+Test messaging structure (serialization, deserialization, and message building
 """
 
 import mlops.orchestration.messaging as orcmes
-from typing import Dict
 
 
 def test_serial_deserial():
@@ -18,14 +17,15 @@ def test_building_message():
     # test Producer/Consumer Naming
     test_ingest = orcmes.set_producer_consumer_type("ingest")
     assert test_ingest == "ingestion"
-    test_mlops = orcmes.set_producer_consumer_type("ETL")
-    assert test_mlops == "mlops"
+    test_mlop = orcmes.set_producer_consumer_type("ETL")
+    assert test_mlop == "mlops"
     test_bad_str = orcmes.set_producer_consumer_type("Coeus")
+    assert test_bad_str == "unknown"
 
     # test building kafka messages
     test_msg = "Hello World"
     new_msg = orcmes.build_kafka_json(
-        orcmes.Stage_Status.START.name, test_mlops, user_msg=test_msg, retries=0
+        orcmes.Stage_Status.START.name, test_mlop, user_msg=test_msg, retries=0
     )
     assert new_msg["producer"] == "mlops"
     assert new_msg["output"], AssertionError
