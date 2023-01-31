@@ -240,6 +240,28 @@ class DatasetMetadata:
         """Merge metadata from two datasets."""
         raise NotImplementedError("Not implemented.")
 
+    def populated_from(self, other: DatasetMetadata) -> DatasetMetadata:
+        """
+        Populate base values from another instance.
+
+        :param other: Another DatasetMetadata instance
+        :type other: DatasetMetadata
+
+        :return: The instance (self)
+        :rtype: DatasetMetadata
+        """
+        if other.domain is not None:
+            self.domain = other.domain
+        if other.type is not None:
+            self.type = other.type
+        if other.identifier is not None:
+            self.identifier = other.identifier
+        if other.created_at is not None:
+            self.created_at = other.created_at
+        if other.updated_at is not None:
+            self.updated_at = other.updated_at
+        return self
+
     def _check(self):
         """
         Check that the metadata object is populated.

@@ -2,6 +2,9 @@
 Datalake sub-package exports.
 """
 
+# Expose integrity as submodule
+import mlops.datalake.integrity as integrity
+
 # Export top-level context management
 from mlops.datalake._util import set_path
 
@@ -38,4 +41,5 @@ __all__ = [
     "IncompleteError",
     "ParseError",
     "EvaluationError",
+    "integrity",
 ]

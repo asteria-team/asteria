@@ -35,3 +35,27 @@ def find_json(name: str) -> Path:
         if path.name == name:
             return path
     raise RuntimeError(f"Failed to find JSON artifact: {name}.")
+
+
+def find_image(name: str) -> Path:
+    """
+    Find an image artifact.
+
+    :param name: The name of the artifact
+    :type name: str
+
+    :return: The path to the artifact
+    :rtype: Path
+    """
+    image_dir = _testdata_root() / "image"
+    assert image_dir.is_dir()
+
+    for path in image_dir.glob("*"):
+        if _basename(path) == name:
+            return path
+    raise RuntimeError(f"Failed to find image artifact {name}.")
+
+
+def _basename(path: Path) -> str:
+    """Convert path to basename."""
+    return os.path.splitext(path.name)[0]

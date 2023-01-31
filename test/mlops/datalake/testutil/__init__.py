@@ -1,3 +1,3 @@
-from .artifact import find_json
+from .artifact import find_image, find_json
 
-__all__ = ["find_json"]
+__all__ = ["find_json", "find_image"]

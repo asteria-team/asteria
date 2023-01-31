@@ -228,45 +228,58 @@ def _object_from_ls_json(data: Dict[str, Any]) -> Object:
 
 @dataclass
 class ObjectDetectionDatasetMetadata(DatasetMetadata):
+    """Defines the metadata for an object detection dataset."""
+
+    n_images: int = 0
+    """The number of images in the dataset."""
+
+    n_annotations: int = 0
+    """The number of annotations in the dataset."""
+
     tags: List[str] = field(default_factory=lambda: [])
     """A list of descriptive tags for the dataset."""
 
     def to_json(self) -> Dict[str, Any]:
         """Serialize to JSON."""
         return {
-            "domain": self.domain.to_json(),
-            "type": self.type.to_json(),
-            "identifier": self.identifier.to_json(),
-            "created_at": self.created_at,
-            "updated_at": self.updated_at,
+            **super().to_json(),
+            "n_images": self.n_images,
+            "n_annotations": self.n_annotations,
             "tags": [tag for tag in self.tags],
         }
 
     def to_stripped_json(self) -> Dict[str, Any]:
         """Serialize to stripped JSON."""
-        return {"tags": [tag for tag in self.tags]}
+        return {
+            "n_images": self.n_images,
+            "n_annotations": self.n_annotations,
+            "tags": [tag for tag in self.tags],
+        }
 
     @staticmethod
     def from_json(data: Dict[str, Any]) -> ObjectDetectionDatasetMetadata:
         """Deserialize from JSON."""
-        assert "tags" in data, "Broken precondition."
+        assert all(
+            e in data for e in ["n_images", "n_annotations", "tags"]
+        ), "Broken precondition."
         return ObjectDetectionDatasetMetadata(
-            domain=DatasetDomain.from_json(data["domain"]),
-            type=DatasetType.from_json(data["type"]),
-            identifier=DatasetIdentifier.from_json(data["identifier"]),
-            created_at=data["created_at"],
-            updated_at=data["updated_at"],
+            n_images=data["n_images"],
+            n_annotations=data["n_annotations"],
             tags=[tag for tag in data["tags"]],
-        )
+        ).populated_from(DatasetMetadata.from_json(data))
 
     @staticmethod
     def from_stripped_json(
         data: Dict[str, Any]
     ) -> ObjectDetectionDatasetMetadata:
         """Deserialize from stripped JSON."""
-        assert "tags" in data, "Broken precondition."
+        assert all(
+            e in data for e in ["n_images", "n_annotations", "tags"]
+        ), "Broken precondition."
         return ObjectDetectionDatasetMetadata(
-            tags=[tag for tag in data["tags"]]
+            n_images=data["n_images"],
+            n_annotations=data["n_annotations"],
+            tags=[tag for tag in data["tags"]],
         )
 
     @staticmethod
@@ -312,7 +325,9 @@ class ObjectDetectionDatasetMetadata(DatasetMetadata):
         result.domain = self.domain if self.domain is not None else other.domain
         # Carry type
         result.type = self.type if self.type is not None else other.type
-        # Merge tags
+        # Merge fields
+        result.n_images = self.n_images + other.n_images
+        result.n_annotations = self.n_annotations + other.n_annotations
         result.tags = [t for m in [self, other] for t in m.tags]
         return result
 
@@ -357,6 +372,7 @@ class ObjectDetectionDataset(PhysicalDataset):
                 f"Image with identifier {image.id} already exists."
             )
         self._images.append(image)
+        self.metadata.n_images += 1
 
     def add_annotation(self, annotation: ObjectDetectionAnnotation):
         """
@@ -370,6 +386,7 @@ class ObjectDetectionDataset(PhysicalDataset):
                 f"Annotation with identifier {annotation.id} already exists."
             )
         self._annotations.append(annotation)
+        self.metadata.n_annotations += 1
 
     def save(self):
         """Persist the dataset to the underlying data lake."""
@@ -409,7 +426,10 @@ class ObjectDetectionDataset(PhysicalDataset):
         assert datasets_dir.is_dir(), "Broken invariant."
 
         _verify_integrity(
-            datasets_dir / str(self.identifier), self._images, self._annotations
+            datasets_dir / str(self.identifier),
+            self.metadata,
+            self._images,
+            self._annotations,
         )
 
 
@@ -585,6 +605,7 @@ def _load_annotations(dataset_dir: Path) -> List[ObjectDetectionAnnotation]:
 
 def _verify_integrity(
     dataset_dir: Path,
+    metadata: ObjectDetectionDatasetMetadata,
     images: List[Image],
     annotations: List[ObjectDetectionAnnotation],
 ):
@@ -608,6 +629,9 @@ def _verify_integrity(
     metadata_path = dataset_dir / util.ctx.metadata_filename()
     if not metadata_path.is_file():
         raise IntegrityError("Missing metadata.json file.")
+
+    _verify_images_count(metadata, images)
+    _verify_annotations_count(metadata, annotations)
 
     _verify_persisted_images(dataset_dir, images)
     _verify_persisted_annotations(dataset_dir, annotations)
@@ -639,6 +663,45 @@ def _verify_empty_dataset(
     # Likewise for annotations
     if any(annotation._persisted for annotation in annotations):
         raise IntegrityError("Empty dataset contains a persisted annotation.")
+
+
+def _verify_images_count(
+    metadata: ObjectDetectionDatasetMetadata, images: List[Image]
+):
+    """
+    Verify that metadata is synchronized with images.
+
+    :param metadata: The dataset metadata
+    :type metadata: ObjectDetectionDatasetMetadata
+    :param images: The collection of images
+    :type images: List[Image]
+
+    :raises: IntegrityError
+    """
+    if metadata.n_images != len(images):
+        raise IntegrityError(
+            f"Metadata {metadata.n_images} images does not match image count {len(images)}."
+        )
+
+
+def _verify_annotations_count(
+    metadata: ObjectDetectionDatasetMetadata,
+    annotations: List[ObjectDetectionAnnotation],
+):
+    """
+    Verify that metadata is synchronized with annotations.
+
+    :param metadata: The dataset metadata
+    :type metadata: ObjectDetectionDatasetMetadata
+    :param images: The collection of annotations
+    :type images: List[ObjectDetectionAnnotation]
+
+    :raises: IntegrityError
+    """
+    if metadata.n_annotations != len(annotations):
+        raise IntegrityError(
+            f"Metadata {metadata.n_annotations} annotations does not match annotation count {len(annotations)}."
+        )
 
 
 def _verify_persisted_images(dataset_dir: Path, images: List[Image]):
