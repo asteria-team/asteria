@@ -208,6 +208,10 @@ class DatasetMetadata:
             "updated_at": self.updated_at,
         }
 
+    def to_stripped_json(self) -> Dict[str, Any]:
+        """Serialize to stripped JSON object."""
+        raise NotImplementedError("Not implemented.")
+
     @staticmethod
     def from_json(data: Dict[str, Any]) -> DatasetMetadata:
         """
@@ -226,6 +230,11 @@ class DatasetMetadata:
             created_at=data["created_at"],
             updated_at=data["updated_at"],
         )
+
+    @staticmethod
+    def from_stripped_json(data: Dict[str, Any]) -> DatasetMetadata:
+        """Deserialize from stripped JSON object."""
+        raise NotImplementedError("Not implemented.")
 
     def merge(self, other: DatasetMetadata) -> DatasetMetadata:
         """Merge metadata from two datasets."""

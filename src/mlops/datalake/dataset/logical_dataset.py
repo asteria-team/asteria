@@ -5,16 +5,17 @@ LogicalDataset class implementation.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
 
 import mlops.datalake._util as util
+import mlops.datalake.dataset.ops as ops
 from mlops.datalake._util.time import timestamp
 
 # Import all dataset-specific metadata types
 from .cv import ObjectDetectionDatasetMetadata
 from .metadata import (
-    DatasetDomain,
     DatasetIdentifier,
     DatasetMetadata,
     DatasetType,
@@ -28,17 +29,10 @@ from .metadata import (
 # The name of the file in which the dataset description is stored
 _DESCRIPTION_FILENAME = "description.json"
 
+
 # -----------------------------------------------------------------------------
-# LogicalDataset
+# SplitDefinition
 # -----------------------------------------------------------------------------
-
-
-def _install_hook(func, hook):
-    def wrapper(*args, **kwargs):
-        hook()
-        return func(*args, **kwargs)
-
-    return wrapper
 
 
 class SplitDefinition:
@@ -105,6 +99,83 @@ class SplitDefinition:
         return not self.__neq__(other)
 
 
+# -----------------------------------------------------------------------------
+# LogicalDatasetMetadata
+# -----------------------------------------------------------------------------
+
+
+@dataclass
+class LogicalDatasetMetadata(DatasetMetadata):
+    """
+    Represents the metadata for a logical dataset.
+
+    For a logical datasets, the top-level contains generic
+    dataset metadata, and for each split we maintain a
+    dataset-type specific metadata object that is computed
+    from the physical datasets of which the split is composed.
+    """
+
+    splits: Dict[str, DatasetMetadata] = field(default_factory=lambda: [])
+    """The collection of per-split metadata."""
+
+    def to_json(self) -> Dict[str, Any]:
+        """Serialize to JSON object."""
+        return {
+            **super().to_json(),
+            "splits": {k: v.to_stripped_json() for k, v in self.splits.items()},
+        }
+
+    @staticmethod
+    def from_json(data: Dict[str, Any]) -> LogicalDatasetMetadata:
+        """Deserialize from JSON object."""
+        assert "splits" in data, "Broken precondition."
+
+        # Populate the base object
+        metadata = LogicalDatasetMetadata._populated_from(
+            DatasetMetadata.from_json(data)
+        )
+
+        meta_type = _metadata_class_for_type(metadata.type)
+        for k, v in data["splits"].items():
+            metadata.splits[k] = meta_type.from_stripped_json(v)
+
+        return metadata
+
+    @staticmethod
+    def _populated_from(
+        dataset_metadata: DatasetMetadata,
+    ) -> LogicalDatasetMetadata:
+        """
+        Populate base entries from existing DatasetMetadata instance.
+
+        :param dataset_metadata: The target object
+        :type dataset_metadata: DatasetMetadata
+
+        :return: The populated metadata
+        :rtype: LogicalDatasetMetadata
+        """
+        metadata = LogicalDatasetMetadata()
+        metadata.domain = dataset_metadata.domain
+        metadata.type = dataset_metadata.type
+        metadata.identifier = dataset_metadata.identifier
+        metadata.created_at = dataset_metadata.created_at
+        metadata.updated_at = dataset_metadata.updated_at
+        return metadata
+
+
+# -----------------------------------------------------------------------------
+# LogicalDataset
+# -----------------------------------------------------------------------------
+
+
+def _install_hook(func, hook):
+    def wrapper(*args, **kwargs):
+        hook()
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 class LogicalDataset:
     """
     A LogicalDataset represents a collection of PhysicalDataset
@@ -143,6 +214,13 @@ class LogicalDataset:
         """
         assert self.id is not None, "Broken invariant."
 
+        if not len(split) == 1:
+            raise RuntimeError("Invalid split.")
+
+        # Ensure that each dataset in the split exists
+        if not all(ops.pdataset_exists(did) for did in list(split.values())[0]):
+            raise RuntimeError("Missing physical dataset.")
+
         # Convert to a split
         splitid = next(iter(split))
         split = SplitDefinition(
@@ -155,7 +233,9 @@ class LogicalDataset:
         # Add the split
         self.splits.append(split)
         # Update the metadata
-        self.metadata = _compute_metadata(self.metadata.identifier, self.splits)
+        self.metadata = _compute_metadata(
+            self.metadata.identifier, self.metadata, self.splits
+        )
 
     def save(self, overwrite: bool = False):
         """
@@ -173,7 +253,8 @@ class LogicalDataset:
         if not dataset_dir.is_dir():
             dataset_dir.mkdir()
 
-        # Update times
+        # Update metadata
+        self.metadata = _compute_metadata(self.id, self.metadata, self.splits)
         if self.metadata.created_at is None:
             self.metadata.created_at = timestamp()
         self.metadata.updated_at = timestamp()
@@ -210,46 +291,113 @@ class LogicalDataset:
 
 
 def _compute_metadata(
-    dataset_id: DatasetIdentifier, splits: List[SplitDefinition]
-) -> DatasetMetadata:
+    dataset_id: DatasetIdentifier,
+    existing_metadata: LogicalDatasetMetadata,
+    splits: List[SplitDefinition],
+) -> LogicalDatasetMetadata:
     """
     Compute metadata for the LogicalDataset instance.
 
     :param dataset_id: The dataset identifier
     :type dataset_id: DatasetIdentifier
+    :param existing_metadata: The existing metadata for the dataset
+    :type existing_metadata: LogicalDatasetMetadata
     :param splits: The collection of splits
     :type splits: List[SplitDefinition]
 
-    :return: DatasetMetadata
-    :rtype: DatasetMetadata
+    :return: LogicalDatasetMetadata
+    :rtype: LogicalDatasetMetadata
     """
-    # Construct the path for each physical dataset in the collection
-    dataset_path = [
-        util.ctx.pdataset_path() / str(d)
+    # Compute metadata for each split
+    metadata_by_split = {
+        str(split.id): _compute_metadata_for_split(dataset_id, split)
         for split in splits
-        for d in split.datasets
-    ]
-    # Load metadata for each dataset
-    dataset_meta = [_load_metadata_for_dataset(d) for d in dataset_path]
+    }
+    if (
+        not len(
+            set(split_meta.domain for split_meta in metadata_by_split.values())
+        )
+        == 1
+    ):
+        raise RuntimeError(
+            "All datasets within logical dataset must have same domain."
+        )
+    if (
+        not len(
+            set(split_meta.type for split_meta in metadata_by_split.values())
+        )
+        == 1
+    ):
+        raise RuntimeError(
+            "All datasets within logical dataset must have same type."
+        )
 
-    # Merge handles type-specific merge operations
-    metadata = _determine_metadata_type(dataset_meta)
-    for other in dataset_meta:
-        metadata = metadata.merge(other)
+    # Compute dataset domain
+    dataset_domain = list(metadata_by_split.values())[0].domain
+    # Compute dataset type
+    dataset_type = list(metadata_by_split.values())[0].type
 
-    # Apply the identifier
-    metadata.identifier = dataset_id
+    # Construct unified metadata
+    metadata = LogicalDatasetMetadata(
+        domain=dataset_domain,
+        type=dataset_type,
+        identifier=dataset_id,
+        created_at=existing_metadata.created_at,
+        updated_at=existing_metadata.updated_at,
+        splits=metadata_by_split,
+    )
     return metadata
 
 
+def _compute_metadata_for_split(
+    dataset_id: DatasetIdentifier, split: SplitDefinition
+) -> DatasetMetadata:
+    """
+    Compute metadata for an individual split within logical dataset.
+
+    :param dataset_id: The dataset identifier
+    :type dataset_id: DatasetIdentifier
+    :param split: The target split
+    :type split: SplitDefinition
+
+    :return: LogicalDatasetMetadata
+    :rtype: LogicalDatasetMetadata
+    """
+    if not len(set(ops.pdataset_domain(did) for did in split.datasets)) == 1:
+        raise RuntimeError(
+            f"All datasets within split {split.id} must have same domain."
+        )
+    if not len(set(ops.pdataset_type(did) for did in split.datasets)) == 1:
+        raise RuntimeError(
+            f"All datasets within split {split.id} must have same type."
+        )
+
+    # Grab the dataset type (equivalent for all)
+    dataset_type = ops.pdataset_type(split.datasets[0])
+
+    # Load the metadata for each dataset
+    dataset_metadata = [
+        _load_metadata_for_dataset(did, dataset_type) for did in split.datasets
+    ]
+
+    # Merge metadata from all datasets
+    builder: DatasetMetadata = _metadata_class_for_type(dataset_type)()
+    for metadata in dataset_metadata:
+        builder = builder.merge(metadata)
+
+    return builder
+
+
 def _load_metadata_for_dataset(
-    dataset_id: DatasetIdentifier,
+    dataset_id: DatasetIdentifier, dataset_type: DatasetType
 ) -> DatasetMetadata:
     """
     Load the metadata object for the specified physical dataset.
 
     :param dataset_id: The dataset identifier
     :type dataset_id: DatasetIdentifier
+    :param dataset_type: The type identifier for the dataset
+    :type dataset_type: DatasetType
 
     :return: The loaded metadata
     :rtype: DatasetMetadata
@@ -265,44 +413,24 @@ def _load_metadata_for_dataset(
         raise RuntimeError("Dataset missing metadata file.")
 
     # Determine the appropriate loader
-    # NOTE(Kyle): This is horrible, load the file twice
-    generic = DatasetMetadata.from_file(metadata_path)
-    if generic.type == DatasetType.OBJECT_DETECTION:
+    if dataset_type == DatasetType.OBJECT_DETECTION:
         return ObjectDetectionDatasetMetadata.from_file(metadata_path)
+    assert False, "Unreachable."
 
-    raise RuntimeError(f"Unknown dataset type: {generic.type}.")
 
-
-def _determine_metadata_type(
-    metadata_objects: List[DatasetMetadata],
-) -> DatasetMetadata:
+def _metadata_class_for_type(type: DatasetType) -> type:
     """
-    Determine the appropriate metadata object type from a collection of abstract objects.
+    Get the type object for the dataset metadata class of the specified type.
 
-    :param metadata_objects: The collection of metadata objects
-    :type metadata_objects: List[DatasetMetadata]
+    :param type: The type identifier for the dataset
+    :type type: DatasetType
 
-    :return: The appropriate dataset metadata type
-    :rtype: DatasetMetadata
+    :return: The type object
+    :rtype: type
     """
-    # Determine the appropriate metadata type
-    if not len(set(m.domain for m in metadata_objects)) == 1:
-        raise RuntimeError(
-            "All datasets within LogicalDataset must have equivalent domain."
-        )
-    if not len(set(m.type for m in metadata_objects)):
-        raise RuntimeError(
-            "All datasets within LogicalDataset must have equivalent type."
-        )
-
-    sample = metadata_objects[0]
-    if sample.type == DatasetType.OBJECT_DETECTION:
-        return ObjectDetectionDatasetMetadata(
-            domain=DatasetDomain.COMPUTER_VISION,
-            type=DatasetType.OBJECT_DETECTION,
-        )
-
-    raise RuntimeError(f"Unknown metadata type: {sample.type}")
+    if type == DatasetType.OBJECT_DETECTION:
+        return ObjectDetectionDatasetMetadata
+    raise RuntimeError(f"Unknown dataset type: {type}.")
 
 
 # -----------------------------------------------------------------------------

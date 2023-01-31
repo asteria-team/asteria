@@ -233,7 +233,6 @@ class ObjectDetectionDatasetMetadata(DatasetMetadata):
 
     def to_json(self) -> Dict[str, Any]:
         """Serialize to JSON."""
-        self._check()
         return {
             "domain": self.domain.to_json(),
             "type": self.type.to_json(),
@@ -242,6 +241,10 @@ class ObjectDetectionDatasetMetadata(DatasetMetadata):
             "updated_at": self.updated_at,
             "tags": [tag for tag in self.tags],
         }
+
+    def to_stripped_json(self) -> Dict[str, Any]:
+        """Serialize to stripped JSON."""
+        return {"tags": [tag for tag in self.tags]}
 
     @staticmethod
     def from_json(data: Dict[str, Any]) -> ObjectDetectionDatasetMetadata:
@@ -254,6 +257,16 @@ class ObjectDetectionDatasetMetadata(DatasetMetadata):
             created_at=data["created_at"],
             updated_at=data["updated_at"],
             tags=[tag for tag in data["tags"]],
+        )
+
+    @staticmethod
+    def from_stripped_json(
+        data: Dict[str, Any]
+    ) -> ObjectDetectionDatasetMetadata:
+        """Deserialize from stripped JSON."""
+        assert "tags" in data, "Broken precondition."
+        return ObjectDetectionDatasetMetadata(
+            tags=[tag for tag in data["tags"]]
         )
 
     @staticmethod
@@ -285,25 +298,23 @@ class ObjectDetectionDatasetMetadata(DatasetMetadata):
         :return: The merged metadata object
         :rtype: ObjectDetectionMetadata
         """
-        assert self.domain == other.domain, "Broken precondition."
-        assert self.type == other.type, "Broken precondition."
+        assert (
+            self.domain is None
+            or other.domain is None
+            or self.domain == other.domain
+        ), "Broken precondition."
+        assert (
+            self.type is None or other.type is None or self.type == other.type
+        ), "Broken precondition."
 
         result = ObjectDetectionDatasetMetadata()
         # Carry domain
-        result.domain = self.domain
+        result.domain = self.domain if self.domain is not None else other.domain
         # Carry type
-        result.type = self.type
+        result.type = self.type if self.type is not None else other.type
         # Merge tags
         result.tags = [t for m in [self, other] for t in m.tags]
         return result
-
-    def _check(self):
-        """
-        Check that the metadata object is populated.
-
-        :raises IncompleteError
-        """
-        super()._check()
 
 
 # -----------------------------------------------------------------------------
