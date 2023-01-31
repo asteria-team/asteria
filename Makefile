@@ -16,23 +16,27 @@ test:
 .PHONY: isort
 isort:
 	isort --line-length 80 --profile black src/
-	isort --line-length 80 --profile black src/
+	isort --line-length 80 --profile black test/
+	isort --line-length 80 --profile black testbed/
 
 .PHONY: check-isort
 check-isort:
 	isort --check --line-length 80 --profile black src/
-	isort --check --line-length 80 --profile black src/
+	isort --check --line-length 80 --profile black test/
+	isort --check --line-length 80 --profile black testbed/
 
 # Format with black
 .PHONY: format
 format:
-	black --line-length 80 src/
-	black --line-length 80 test/
+	black src/
+	black test/
+	black testbed/
 
 .PHONY: check-format
 check-format:
-	black --check --line-length 80 src/
-	black --check --line-length 80 test/
+	black --check src/
+	black --check test/
+	black --check testbed/
 
 # Lint with flake8
 .PHONY: lint
