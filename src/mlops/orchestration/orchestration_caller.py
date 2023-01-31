@@ -147,9 +147,7 @@ class Producer:
             self.producer = None
             self.loc = None
 
-    def complete(
-        self, stage: str = None, output: str = None, usr_msg: str = None
-    ):
+    def complete(self, stage: str = None, output: str = None, usr_msg: str = None):
         """directs producer tool completion messages"""
         if self.orchestrator == "kafka":
             if stage is not None:
@@ -190,9 +188,7 @@ class Producer:
             # no orchestrator case
             self.prolog(f"{self.producer} started. Message: {usr_msg}")
 
-    def update_progress(
-        self, stage: str, output: str = None, usr_msg: str = None
-    ):
+    def update_progress(self, stage: str, output: str = None, usr_msg: str = None):
         """directs producer tool in-progress messages"""
         if self.orchestrator == "kafka":
             if stage is not None:

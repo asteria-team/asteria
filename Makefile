@@ -26,13 +26,13 @@ check-isort:
 # Format with black
 .PHONY: format
 format:
-	black --line-length 80 src/
-	black --line-length 80 test/
+	black src/
+	black test/
 
 .PHONY: check-format
 check-format:
-	black --check --line-length 80 src/
-	black --check --line-length 80 test/
+	black --check src/
+	black --check test/
 
 # Lint with flake8
 .PHONY: lint

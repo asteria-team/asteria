@@ -131,12 +131,17 @@ def json_deserializer(serial_msg: bytearray) -> Dict[str, Any]:
 
 
 def set_producer_consumer_type(user_input: str) -> str:
-    """Convert passed producer and consumer strings"""
+    """Convert passed producer and consumer initializer strings"""
     for pc_type, options in ALLOWED_PRODUCERS_CONSUMERS.items():
         if user_input.lower() in [opt for opt in options]:
             return pc_type
     logging.error(f"Type {user_input} is not recognized. Failed to set type")
     return "unknown"
+
+
+def set_stage_types(user_input: str) -> str:
+    """TODO Convert passed pipeline stage strings"""
+    return user_input
 
 
 # -----------------------------------------------
