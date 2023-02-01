@@ -9,6 +9,24 @@ test:
 	tox --develop -e py38
 
 # ---------------------------------------------------------
+# Storage Preparation for Development
+# ---------------------------------------------------------
+
+# Create a data lake storage location in current directory
+.PHONY: dl
+dl:
+	mkdir dl
+
+# Remove the data lake storage location
+.PHONY: cleandl
+cleandl:
+	rm -rf dl
+
+.PHONY: backend
+backend:
+	python src/backend/backend.py --datalake dl/ --verbose
+
+# ---------------------------------------------------------
 # Quality Assurance
 # ---------------------------------------------------------
 
