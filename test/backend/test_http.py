@@ -48,3 +48,31 @@ def test_init(server):
 
     res = get("/api/healthcheck")
     assert res.status_code == 200
+
+
+@pytest.mark.parametrize("server", deepcopy(DEFINITIONS), indirect=["server"])
+def test_get_dataset_domains(server):
+    """Perform a request for dataset domains metadata."""
+    d: TestDefinition = server
+    d.start()
+
+    res = get("/api/datalake/metadata/dataset/domain")
+    assert res.status_code == 200
+
+    body = res.json()
+    assert "domains" in body
+    assert len(body["domains"]) > 0
+
+
+@pytest.mark.parametrize("server", deepcopy(DEFINITIONS), indirect=["server"])
+def test_get_dataset_types(server):
+    """Perform a request for dataset types metadata."""
+    d: TestDefinition = server
+    d.start()
+
+    res = get("/api/datalake/metadata/dataset/type")
+    assert res.status_code == 200
+
+    body = res.json()
+    assert "types" in body
+    assert len(body["types"]) > 0

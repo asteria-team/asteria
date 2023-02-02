@@ -35,7 +35,7 @@ DEFAULT_PORT = 8080
 g_app = FastAPI()
 
 # The router for all API routes
-api_router = APIRouter(prefix="/api")
+g_api_router = APIRouter(prefix="/api")
 
 # -----------------------------------------------------------------------------
 # Argument Parsing
@@ -71,18 +71,49 @@ def parse_arguments() -> Tuple[Path, str, int, bool]:
 
 
 # -----------------------------------------------------------------------------
-# Routes: Healthcheck
+# Route: Healthcheck
 # -----------------------------------------------------------------------------
 
 
-@api_router.get("/healthcheck")
+@g_api_router.get("/healthcheck")
 async def get_healthcheck():
     return {"status": "healthy"}
 
 
 # -----------------------------------------------------------------------------
-# Routes: Read Results
+# Route: Dataset Domain Metadata
 # -----------------------------------------------------------------------------
+
+
+@g_api_router.get("/datalake/metadata/dataset/domain")
+async def get_dataset_domains():
+    """
+    Get the available dataset domain identifiers from the datalake.
+
+    :return: {"domains": [{"identifier": <ID>}]}
+    :rtype: Dict[str, Any]
+    """
+    domains = dl.dataset_domains().find({})
+    return {
+        "domains": [{"identifier": domain.value.lower()} for domain in domains]
+    }
+
+
+# -----------------------------------------------------------------------------
+# Route: Dataset Type Metadata
+# -----------------------------------------------------------------------------
+
+
+@g_api_router.get("/datalake/metadata/dataset/type")
+async def get_dataset_types():
+    """
+    Get the available dataset type identifiers from the datalake.
+
+    :return: {"types": [{"identifier": <ID>}]}
+    :rtype: Dict[str, Any]
+    """
+    types = dl.dataset_types().find({})
+    return {"types": [{"identifier": t.value.lower()} for t in types]}
 
 
 # @g_app.get(
@@ -151,7 +182,7 @@ def run(
         raise RuntimeError(f"{datalake} is not a suitable data lake location.")
     dl.set_path(datalake)
 
-    g_app.include_router(api_router)
+    g_app.include_router(g_api_router)
     uvicorn.run(g_app, host=host, port=port)
 
     return EXIT_SUCCESS
