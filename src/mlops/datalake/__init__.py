@@ -27,7 +27,12 @@ from mlops.datalake.exception import (
 )
 
 # Export query types and collection handles
-from mlops.datalake.query import FilterDocument, pdatasets
+from mlops.datalake.query import (
+    FilterDocument,
+    dataset_domains,
+    dataset_types,
+    pdatasets,
+)
 
 __all__ = [
     "set_path",
@@ -36,6 +41,8 @@ __all__ = [
     "ObjectDetectionAnnotation",
     "LogicalDataset",
     "pdatasets",
+    "dataset_domains",
+    "dataset_types",
     "FilterDocument",
     "IntegrityError",
     "IncompleteError",
