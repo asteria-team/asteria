@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Tuple
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 
 # TODO(Kyle): Remove for production
 from resolver import mlops_root
@@ -33,6 +33,9 @@ DEFAULT_PORT = 8080
 
 # The global FastAPI application
 g_app = FastAPI()
+
+# The router for all API routes
+api_router = APIRouter(prefix="api")
 
 # -----------------------------------------------------------------------------
 # Argument Parsing
@@ -72,7 +75,7 @@ def parse_arguments() -> Tuple[Path, str, int, bool]:
 # -----------------------------------------------------------------------------
 
 
-@g_app.get("/healthcheck")
+@api_router.get("/healthcheck")
 async def get_healthcheck():
     return {"status": "healthy"}
 
@@ -139,6 +142,8 @@ def run(
     :return: An error code
     :rtype: int
     """
+    global g_app
+
     logging.basicConfig(level=logging.INFO if verbose else logging.ERROR)
 
     # Initialize the data lake
@@ -146,6 +151,7 @@ def run(
         raise RuntimeError(f"{datalake} is not a suitable data lake location.")
     dl.set_path(datalake)
 
+    g_app.include_router(api_router)
     uvicorn.run(g_app, host=host, port=port)
 
     return EXIT_SUCCESS
