@@ -98,34 +98,44 @@ class PipelineLogger:
     def debug(self, msg: str, add_tags: List[str] = None):
         """Log a debugging message"""
         if add_tags is not None:
-            self.logger.debug(msg, extra={"tags": {"additional_tags": add_tags}})
+            self.logger.debug(
+                msg, extra={"tags": {"additional_tags": add_tags}}
+            )
         else:
             self.logger.debug(msg)
 
     def info(self, message: str, add_tags: List[str] = None):
         """Log an informational message"""
         if add_tags is not None:
-            self.logger.info(message, extra={"tags": {"additional_tags": add_tags}})
+            self.logger.info(
+                message, extra={"tags": {"additional_tags": add_tags}}
+            )
         else:
             self.logger.info(message)
 
     def warn(self, msg: str, add_tags: List[str] = None):
         """Log a warning message"""
         if add_tags is not None:
-            self.logger.warning(msg, extra={"tags": {"additional_tags": add_tags}})
+            self.logger.warning(
+                msg, extra={"tags": {"additional_tags": add_tags}}
+            )
         else:
             self.logger.warning(msg)
 
     def error(self, msg: str, add_tags: List[str] = None):
         """Log an error message"""
         if add_tags is not None:
-            self.logger.error(msg, extra={"tags": {"additional_tags": add_tags}})
+            self.logger.error(
+                msg, extra={"tags": {"additional_tags": add_tags}}
+            )
         else:
             self.logger.error(msg)
 
     def crit(self, msg: str, add_tags: List[str] = None):
         """Log a critical message"""
         if add_tags is not None:
-            self.logger.critical(msg, extra={"tags": {"additional_tags": add_tags}})
+            self.logger.critical(
+                msg, extra={"tags": {"additional_tags": add_tags}}
+            )
         else:
             self.logger.critical(msg)

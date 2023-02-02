@@ -11,19 +11,16 @@ the appropriate python wrapper for the orchestration
 tool in use.
 """
 
+import logging
 import subprocess
-from typing import Tuple
+from typing import List, Union
 
-from ..pipeline_logger import PipelineLogger
+from ..messaging import MLOPS_Message
 from .kafka_wrapper import (
-    kafka_complete_message,
-    kafka_consumer_connect,
-    kafka_failure_message,
-    kafka_producer_connect,
-    kafka_progress_message,
-    kafka_start_message,
+    _kafka_consumer_connect,
+    _kafka_producer_connect,
+    _kafka_send_message,
 )
-from .messaging import set_producer_consumer_type
 
 # --------------------------------------------------
 # Global Variables
@@ -40,50 +37,53 @@ KAFKA_TOPIC = "mlops_pipeline"
 # -------------------------------------------------
 
 
-def get_orchestrator(prolog: PipelineLogger) -> Tuple(str, str):
+def _get_orchestrator() -> Union[str, str]:
     """
     Determines if an orchestrator is present and
     returns the name and endpoint of the orchestrator to allow
     the producers/consumers to direct traffic correctly
-    :param prolog: Pipeline logger for this producer
+
     :return: the orchestrator name and endpoint to use in connecting
+    :rtype: tuple(str, str)
     """
     for orch, endpoint in endpoint_dict.items():
         command = ["ping", "-c", "1", endpoint]
         if subprocess.call(command) == 0:
             # ping successful, return the name
             return orch, endpoint
-    prolog.warn("No orchestrator found. Is one running?")
+    logging.warning("No orchestrator found. Is one running?")
     return None, None
 
 
-def test_passed_orchestrator(
-    orc_endpoint: str, orc: str, prolog: PipelineLogger
-) -> bool:
+def _test_passed_orchestrator(orc_endpoint: str, orc: str) -> bool:
     """
     test the user passed orchestrator and endpoint information
     to ensure it is correct and will intgrate with the pipeline
     orchestration wrapper
+
     :param orc_endpoint: the endpoint for producers/consumers to connect to
+    :type orc_endpoint: str
     :param orc: the name of the orchestrator
-    :param prolog: Pipeline logger for this producer
+    :type orc: str
+
     :return: True if valid information passed false otherwise
+    :rtype: bool
     """
     # validate orchestrator string
     if orc is None:
-        prolog.info("Orchestrator name not passed")
+        logging.info("Orchestrator name not passed")
         return False
     if orc not in APPROVED_ORCHESTRATORS:
-        prolog.info(f"{orc} is not an approved orchestrator for the pipeline")
+        logging.info(f"{orc} is not an approved orchestrator for the pipeline")
         return False
 
     # validate orchestrator endpoint
     if orc_endpoint is None:
-        prolog.info("Orchestrator endpoint not passed")
+        logging.info("Orchestrator endpoint not passed")
         return False
     command = ["ping", "-c", "1", orc_endpoint]
     if subprocess.call(command) != 0:
-        prolog.info(f"Unable to ping orchestrator at {orc_endpoint}")
+        logging.info(f"Unable to ping orchestrator at {orc_endpoint}")
         return False
     return True
 
@@ -96,181 +96,139 @@ def test_passed_orchestrator(
 class Producer:
     def __init__(
         self,
-        initializer: str,
-        stage: str = None,
         orchestrator_endpoint: str = None,
         orchestrator: str = None,
-        location: str = None,
+        topic: str or List[str] = None,
+        **kwargs,
     ):
         """
         Initialize the higher level Producer class exposed to the user
-        :param initializer: the tool/app that is calling the producer
-                (required for message building)
-        :param stage: identifies the stage if applicable
-        :param orchestrator_endpoint: The endpoint of the orchestrator if
-                not predefined
+
+        :param orchestrator_endpoint: The endpoint of the orchestrator
+        :type orchestrator_endpoint: str
         :param orchestrator: the name of the orchestrator in use
-        :param location: where to write the messages to.
-                For kafka this is the topic
+        :type orchestrator: str
+        :param topic: the event bucket this producer writes to
+        :type topic: str or List[str]
+        :param **kwargs: any additional configuration requirements desired
+                for the Producer. Keys based on underlying orchestration
+                requirements
+        :type **kwargs: Any
         """
-        self.name = set_producer_consumer_type(initializer)
-        self.stage = stage
-        self.retries = 0
-        # initialize the Producer logger
-        self.prolog = PipelineLogger((self.name + "-producer"))
         # determine underlying orchestrator
-        if orchestrator_endpoint is None and orchestrator is None:
-            self.orchestrator, self.orchestrator_endpoint = get_orchestrator(
-                self.prolog
-            )
+        if _test_passed_orchestrator(orchestrator_endpoint, orchestrator):
+            self.orchestrator = orchestrator
+            self.orchestrator_endpoint = orchestrator_endpoint
         else:
-            if test_passed_orchestrator(
-                orchestrator_endpoint, orchestrator, self.prolog
-            ):
-                self.orchestrator = orchestrator
-                self.orchestrator_endpoint = orchestrator_endpoint
-            else:
-                (
-                    self.orchestrator,
-                    self.orchestrator_endpoint,
-                ) = get_orchestrator(self.prolog)
+            (
+                self.orchestrator,
+                self.orchestrator_endpoint,
+            ) = _get_orchestrator()
 
         # connect to orchestrator and create the producer
         if self.orchestrator == "kafka":
-            self.producer = kafka_producer_connect(self.orchestrator_endpoint)
-            if location is not None:
-                self.loc = location
+            if topic is not None:
+                self.topic = topic
             else:
-                self.loc = KAFKA_TOPIC
+                self.topic = KAFKA_TOPIC
+            self.producer = _kafka_producer_connect(
+                self.orchestrator_endpoint, **kwargs
+            )
         else:
-            self.prolog.warn("Pipeline tools will have to be run manually.")
+            logging.warning(
+                "No orchestrator. Pipeline tools will have to be run manually."
+            )
             self.producer = None
-            self.loc = None
+            self.topic = None
 
-    def complete(self, stage: str = None, output: str = None, usr_msg: str = None):
-        """directs producer tool completion messages"""
+    def send(self, message: MLOPS_Message, flush: bool = True) -> bool:
+        """
+        Directs producer class messages
+
+        :param message: the message to send via the orchestrator
+        :type message: MLOPS_Message
+        :param flush: Determines whether or not to immediately push
+                message to kafka broker and block thread until acks
+        :type flush: bool
+
+        :return: True if successfully sent message and flushed message
+                if that argument is passed as true
+        :rtype: bool
+        """
         if self.orchestrator == "kafka":
-            if stage is not None:
-                self.stage = stage
-            kafka_complete_message(
-                self.producer,
-                self.stage,
-                output,
-                usr_msg,
-                self.retries,
-                self.prolog,
-            )
+            _kafka_send_message(self.producer, message, flush)
         else:
             # no orchestrator case
-            self.prolog(f"{self.producer} complete. Message: {usr_msg}")
-
-    def fail(self, stage: str = None, usr_msg: str = None):
-        """directs producer tool failure messages"""
-        if self.orchestrator == "kafka":
-            if stage is not None:
-                self.stage = stage
-            kafka_failure_message(
-                self.producer, self.stage, usr_msg, self.retries, self.prolog
+            logging.info(
+                f"Message from: {message.get_creator()} with message: {message.get_user_message()}"
             )
-        else:
-            # no orchestrator case
-            self.prolog(f"{self.producer} failed. Message: {usr_msg}")
 
-    def start(self, stage: str = None, usr_msg: str = None):
-        """directs producer tool start messages"""
-        if self.orchestrator == "kafka":
-            if stage is not None:
-                self.stage = stage
-            kafka_start_message(
-                self.producer, self.stage, usr_msg, self.retries, self.prolog
-            )
-        else:
-            # no orchestrator case
-            self.prolog(f"{self.producer} started. Message: {usr_msg}")
+    def flush(self) -> bool:
+        """
+        If not pushed upon creation of the message, flush will
+        push all available messages in the buffer of pending records
+        and wait for all acknowledgements to return before returning
 
-    def update_progress(self, stage: str, output: str = None, usr_msg: str = None):
-        """directs producer tool in-progress messages"""
-        if self.orchestrator == "kafka":
-            if stage is not None:
-                self.stage = stage
-            kafka_progress_message(
-                self.producer,
-                self.stage,
-                usr_msg,
-                output,
-                self.retries,
-                self.prolog,
-            )
-        else:
-            # no orchestrator case
-            self.prolog(f"{self.producer} in progress. Stage: {stage}")
-
-    def retry(self, stage: str = None):
-        if stage is not None:
-            self.stage = stage
-        self.retries += 1
+        :return: True if all messages are flushed. False otherwise
+        :rtype: bool
+        """
+        pass
 
 
 class Consumer:
     def __init__(
         self,
-        initializer: str,
-        stage: str = None,
         orchestrator_endpoint: str = None,
         orchestrator: str = None,
-        loc_subscribe: str = None,
+        topic_subscribe: str = None,
+        **kwargs,
     ):
         """
         Initialize the higher level Consumer class exposed to the user
-        :param initializer: the tool/app that is calling the producer
-                (required for message building)
-        :param stage: identifies the stage if applicable
-        :param orchestrator_endpoint: The endpoint of the orchestrator if
-                not predefined
-        :param orchestrator: the name of the orchestrator in use
-        :param loc_subscribe: where to read the messages from.
-                For kafka this is the topic
-        """
-        self.name = initializer
-        self.stage = stage
-        # initialize the Consumer logger
-        self.conlog = PipelineLogger((self.name + "-consumer"))
-        # determine underlying orchestrator
-        if orchestrator_endpoint is None and orchestrator is None:
-            self.orchestrator, self.orchestrator_endpoint = get_orchestrator(
-                self.conlog
-            )
-        else:
-            if test_passed_orchestrator(
-                orchestrator_endpoint, orchestrator, self.conlog
-            ):
-                self.orchestrator = orchestrator
-                self.orchestrator_endpoint = orchestrator_endpoint
-            else:
-                (
-                    self.orchestrator,
-                    self.orchestrator_endpoint,
-                ) = get_orchestrator(self.conlog)
 
-        # connect to orchestrator and create consumer and subscribe
+        :param orchestrator_endpoint: The endpoint of the orchestrator
+        :type orchestrator_endpoint: str
+        :param orchestrator: the name of the orchestrator in use
+        :type orchestrator: str
+        :param topic_subscribe: where to read/ingests the messages from.
+                For kafka this is the topic.
+        :type topic_subscription: str
+        :param **kwargs: any additional configuration requirements desired
+                for the Consumer. Keys based on underlying orchestration
+                requirements
+        :type **kwargs: Any
+        """
+        # determine underlying orchestrator
+        if _test_passed_orchestrator(orchestrator_endpoint, orchestrator):
+            self.orchestrator = orchestrator
+            self.orchestrator_endpoint = orchestrator_endpoint
+        else:
+            (
+                self.orchestrator,
+                self.orchestrator_endpoint,
+            ) = _get_orchestrator()
+
+        # connect to orchestrator and create the producer
         if self.orchestrator == "kafka":
-            if loc_subscribe is not None:
-                self.loc_sub = loc_subscribe
+            if topic_subscribe is not None:
+                self.topic = topic_subscribe
             else:
-                self.loc_sub = KAFKA_TOPIC
-            self.consumer = kafka_consumer_connect(
-                self.orchestrator_endpoint, self.loc_sub
+                self.topic = KAFKA_TOPIC
+            self.consumer = _kafka_consumer_connect(
+                self.orchestrator_endpoint, self.topic, **kwargs
             )
         else:
-            self.conlog.warn("Pipeline tools will have to be run manually.")
+            logging.warning(
+                "No orchestrator. Pipeline tools will have to be run manually."
+            )
             self.consumer = None
-            self.loc_sub = None
+            self.topic = None
 
 
 class Admin:
     def __init__(self):
         # determine underlying orchestrator
-        self.orchestrator = get_orchestrator()
+        self.orchestrator = _get_orchestrator()
         # establish connection to orchestrator based on the service
         # create the correct version of the admin based on the service
         pass
