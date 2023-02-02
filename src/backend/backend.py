@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Tuple
 
 import uvicorn
-from fastapi import FastAPI, APIRouter
+from fastapi import APIRouter, FastAPI
 
 # TODO(Kyle): Remove for production
 from resolver import mlops_root
@@ -35,7 +35,7 @@ DEFAULT_PORT = 8080
 g_app = FastAPI()
 
 # The router for all API routes
-api_router = APIRouter(prefix="api")
+api_router = APIRouter(prefix="/api")
 
 # -----------------------------------------------------------------------------
 # Argument Parsing
