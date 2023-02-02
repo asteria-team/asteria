@@ -565,3 +565,25 @@ def _parse_logical_or_expr(
     return LogicalOrExpression(
         expressions=[_parse_expression(e) for e in value]
     )
+
+
+# -----------------------------------------------------------------------------
+# Parsing
+# -----------------------------------------------------------------------------
+
+
+def try_parse(document: Dict[str, Any]) -> bool:
+    """
+    Determine if a query can be parsed.
+
+    :param document: The filter document
+    :type document: Dict[str, Any]
+
+    :return: `True` if the query parsed, `False` otherwise
+    :rtype: bool
+    """
+    try:
+        _ = FilterDocument.parse(document)
+    except ParseError:
+        return False
+    return True

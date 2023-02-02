@@ -9,12 +9,14 @@ from pathlib import Path
 from typing import Tuple
 
 import uvicorn
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, HTTPException
 
 # TODO(Kyle): Remove for production
 from resolver import mlops_root
 
 sys.path.append(str(mlops_root().parent))
+
+from models import LogicalDatasetRequest, PhysicalDatasetRequest  # noqa
 
 import mlops.datalake as dl  # noqa
 
@@ -93,7 +95,10 @@ async def get_dataset_domains():
     :return: {"domains": [{"identifier": <ID>}]}
     :rtype: Dict[str, Any]
     """
-    domains = dl.dataset_domains().find({})
+    try:
+        domains = dl.dataset_domains().find({})
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error.")
     return {
         "domains": [{"identifier": domain.value.lower()} for domain in domains]
     }
@@ -112,40 +117,71 @@ async def get_dataset_types():
     :return: {"types": [{"identifier": <ID>}]}
     :rtype: Dict[str, Any]
     """
-    types = dl.dataset_types().find({})
+    try:
+        types = dl.dataset_types().find({})
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error.")
     return {"types": [{"identifier": t.value.lower()} for t in types]}
 
 
-# @g_app.get(
-#     "/pdataset/{model_identifier}/{model_version}/{result_identifier}/{result_version}"
-# )
-# async def get_result_version(
-#     model_identifier: str,
-#     model_version: str,
-#     result_identifier: str,
-#     result_version: int,
-# ):
-#     """
-#     Get an individual result version.
-#     :param model_identifier: The identifier for the model of interest
-#     :type model_identifier: str
-#     :param model_version: The version string for the model of interest
-#     :type model_version: str
-#     :param result_identifier: The identifier for the result of interest
-#     :type result_identifier: str
-#     :param result_version: The version identifier for the result of interest
-#     :type result_version: int
-#     """
-#     try:
-#         # Read the result from the store
-#         document = g_store.read_result(
-#             model_identifier, model_version, result_identifier, result_version
-#         )
-#     except RuntimeError as e:
-#         raise HTTPException(status_code=404, detail=f"{e}")
-#     except Exception:
-#         raise HTTPException(status_code=500, detail="Internal server error.")
-#     return document
+# -----------------------------------------------------------------------------
+# Route: Physical Dataset Request
+# -----------------------------------------------------------------------------
+
+
+@g_api_router.post("/datalake/dataset/pdreq")
+async def get_pdatasets(pdataset_request: PhysicalDatasetRequest):
+    """
+    Get all physical datasets matching provided query.
+
+    :param pdataset_request: The DQL query document
+    :type pdataset_request: PhysicalDatasetRequest
+
+    :return: {"datasets": [{ ... metadata ... }]}
+    :rtype: Dict[str, Any]
+    """
+    try:
+        views = dl.pdatasets().find(pdataset_request.query)
+    except dl.ParseError as e:
+        raise HTTPException(status_code=404, detail=f"Invalid query: {e}")
+    except dl.EvaluationError as e:
+        raise HTTPException(status_code=404, detail=f"Invalid query: {e}")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {e}"
+        )
+
+    return {"datasets": [view.metadata.to_json() for view in views]}
+
+
+# -----------------------------------------------------------------------------
+# Route: Logical Dataset Request
+# -----------------------------------------------------------------------------
+
+
+@g_api_router.post("/datalake/dataset/ldreq")
+async def get_ldatasets(ldataset_request: LogicalDatasetRequest):
+    """
+    Get all logical datasets matching provided query.
+
+    :param ldataset_request: The DQL query document
+    :rtype: LogicalDatasetRequest
+
+    :return: {"datasets": [{ ... metadata ... }]}
+    :rtype: Dict[str, Any]
+    """
+    try:
+        views = dl.ldatasets().find(ldataset_request.query)
+    except dl.ParseError as e:
+        raise HTTPException(status_code=404, detail=f"Invalid query: {e}")
+    except dl.EvaluationError as e:
+        raise HTTPException(status_code=404, detail=f"Invalid query: {e}")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {e}"
+        )
+    return {"datasets": [view.metadata.to_json() for view in views]}
+
 
 # -----------------------------------------------------------------------------
 # Main

@@ -16,7 +16,10 @@ from mlops.datalake.dataset.cv import (
 )
 
 # Export logical dataset
-from mlops.datalake.dataset.logical_dataset import LogicalDataset
+from mlops.datalake.dataset.logical_dataset import (
+    LogicalDataset,
+    LogicalDatasetView,
+)
 
 # Export all exception types
 from mlops.datalake.exception import (
@@ -31,6 +34,7 @@ from mlops.datalake.query import (
     FilterDocument,
     dataset_domains,
     dataset_types,
+    ldatasets,
     pdatasets,
 )
 
@@ -40,7 +44,9 @@ __all__ = [
     "ObjectDetectionDataset",
     "ObjectDetectionAnnotation",
     "LogicalDataset",
+    "LogicalDatasetView",
     "pdatasets",
+    "ldatasets",
     "dataset_domains",
     "dataset_types",
     "FilterDocument",

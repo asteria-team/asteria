@@ -7,7 +7,7 @@ from copy import deepcopy
 import pytest
 
 from .support.datalake import create_datalake, create_tmpdir, delete_tmpdir
-from .support.http import TestDefinition, get
+from .support.http import TestDefinition, get, post
 
 DEFINITIONS = [
     TestDefinition(
@@ -76,3 +76,31 @@ def test_get_dataset_types(server):
     body = res.json()
     assert "types" in body
     assert len(body["types"]) > 0
+
+
+@pytest.mark.parametrize("server", deepcopy(DEFINITIONS), indirect=["server"])
+def test_get_pdatasets(server):
+    """Perform a request for a physical dataset query."""
+    d: TestDefinition = server
+    d.start()
+
+    res = post("/api/datalake/dataset/pdreq", json={"query": {}})
+    assert res.status_code == 200
+
+    body = res.json()
+    assert "datasets" in body
+    assert len(body["datasets"]) == 0
+
+
+@pytest.mark.parametrize("server", deepcopy(DEFINITIONS), indirect=["server"])
+def test_get_ldatasets(server):
+    """Perform a request for a logical dataset query."""
+    d: TestDefinition = server
+    d.start()
+
+    res = post("/api/datalake/dataset/ldreq", json={"query": {}})
+    assert res.status_code == 200
+
+    body = res.json()
+    assert "datasets" in body
+    assert len(body["datasets"]) == 0
