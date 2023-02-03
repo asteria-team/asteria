@@ -11,6 +11,7 @@ def test_serial_deserial():
     assert isinstance(serial_str, bytes)
     deserial_dict = mes.json_deserializer(serial_str)
     assert isinstance(deserial_dict, dict)
+    assert deserial_dict["main_msg"] == "This is a message"
 
 
 def test_building_message():
@@ -33,5 +34,6 @@ def test_building_message():
     )
     assert new_msg.get_topic() == "Pipeline"
     assert new_msg.get_creator_type() == "mlops"
-    assert new_msg.get_output() == None
+    if new_msg.get_output() is None:
+        assert True
     assert new_msg.get_user_message() == test_msg

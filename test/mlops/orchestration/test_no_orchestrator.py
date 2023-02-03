@@ -1,5 +1,7 @@
 """
-Test everything in orchestration.
+Test everything in orchestration without an
+orchestrator to ensure failures for user
+do not occur.
 """
 
 import mlops.orchestration as orc

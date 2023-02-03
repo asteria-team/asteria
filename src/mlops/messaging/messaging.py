@@ -188,6 +188,9 @@ class MLOPS_Message:
                     :type topic: str or List(str)
                     :param creator: the user passed name or id for the creator
                     :type creator: str
+                    :param creator_type: the standardized type of creator. If no
+                            creator is passed, it will be set to `unknown`
+                    :type creator_type: str
                     :param stage: the stage within a tool the message refers to
                     :type stage: Annotation_Stage.name or MLOPS_stage.name
                     :param user_message: The message passed by the producer
@@ -203,11 +206,17 @@ class MLOPS_Message:
         """
         self.msg_type = msg_type
         kwargs_dict = _restrict_message_args(**kwargs)
-        kwargs_dict["creator_type"] = (
-            _set_caller_type(kwargs_dict["creator"])
-            if "creator" in kwargs_dict.keys()
-            else "unknown"
-        )
+        # ensure 'creator_type' is standardized
+        if "creator_type" not in kwargs_dict.keys():
+            kwargs_dict["creator_type"] = (
+                _set_caller_type(kwargs_dict["creator"])
+                if "creator" in kwargs_dict.keys()
+                else "unknown"
+            )
+        else:
+            kwargs_dict["creator_type"] = _set_caller_type(
+                kwargs_dict["creator_type"]
+            )
         self.kwargs = kwargs_dict
 
     def to_json(self):
@@ -228,7 +237,7 @@ class MLOPS_Message:
     """ Pull data from the message """
 
     def get_topic(self):
-        """Get the topic if passed in initialization"""
+        """Get the topic(s) if passed in initialization"""
         return self.kwargs["topic"] if "topic" in self.kwargs.keys() else None
 
     def get_msg_type(self):
@@ -286,8 +295,3 @@ class MLOPS_Message:
             if "additional_arguments" in self.kwargs.keys()
             else None
         )
-
-
-# -----------------------------------------------
-# Messaging Tools
-# -----------------------------------------------

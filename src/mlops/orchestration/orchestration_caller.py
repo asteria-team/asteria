@@ -17,9 +17,16 @@ from typing import List, Union
 
 from ..messaging import MLOPS_Message
 from .kafka_wrapper import (
+    _kafka_close_consumer,
+    _kafka_close_producer,
     _kafka_consumer_connect,
+    _kafka_flush_messages,
+    _kafka_get_subscriptions,
+    _kafka_poll_messages,
     _kafka_producer_connect,
     _kafka_send_message,
+    _kafka_subscribe,
+    _kafka_unsubscribe,
 )
 
 # --------------------------------------------------
@@ -110,10 +117,11 @@ class Producer:
         :type orchestrator: str
         :param topic: the event bucket this producer writes to
         :type topic: str or List[str]
-        :param **kwargs: any additional configuration requirements desired
+        :param `**kwargs`: any additional configuration requirements desired
                 for the Producer. Keys based on underlying orchestration
-                requirements
-        :type **kwargs: Any
+                requirements. Look at the docs for the orchestrator wrapper
+                to determine desired requirements
+        :type `**kwargs`: Any
         """
         # determine underlying orchestrator
         if _test_passed_orchestrator(orchestrator_endpoint, orchestrator):
@@ -141,7 +149,7 @@ class Producer:
             self.producer = None
             self.topic = None
 
-    def send(self, message: MLOPS_Message, flush: bool = True) -> bool:
+    def send(self, message: MLOPS_Message, flush: bool = True):
         """
         Directs producer class messages
 
@@ -150,17 +158,18 @@ class Producer:
         :param flush: Determines whether or not to immediately push
                 message to kafka broker and block thread until acks
         :type flush: bool
-
-        :return: True if successfully sent message and flushed message
-                if that argument is passed as true
-        :rtype: bool
         """
         if self.orchestrator == "kafka":
-            _kafka_send_message(self.producer, message, flush)
+            if message.get_topic() is not None:
+                _kafka_send_message(
+                    self.producer, message.get_topic(), message, flush
+                )
+            else:
+                _kafka_send_message(self.producer, self.topic, message, flush)
         else:
             # no orchestrator case
             logging.info(
-                f"Message from: {message.get_creator()} with message: {message.get_user_message()}"
+                f"Message from: {message.get_creator()} with message: {message.get_user_message()} not sent. No Orchestrator"
             )
 
     def flush(self) -> bool:
@@ -172,7 +181,19 @@ class Producer:
         :return: True if all messages are flushed. False otherwise
         :rtype: bool
         """
-        pass
+        if self.orchestrator == "kafka":
+            return _kafka_flush_messages(self.producer)
+        else:
+            # no orchestrator case
+            logging.info("No orchestrator set up. Flushing not required.")
+            return False
+
+    def close(self):
+        """Close the producer"""
+        if self.orchestrator == "kafka":
+            _kafka_close_producer(self.producer)
+        else:
+            logging.info("No orchestrator set up. Closing not required.")
 
 
 class Consumer:
@@ -195,7 +216,8 @@ class Consumer:
         :type topic_subscription: str
         :param **kwargs: any additional configuration requirements desired
                 for the Consumer. Keys based on underlying orchestration
-                requirements
+                requirements. Look at the docs for the orchestrator wrapper
+                to determine desired requirements
         :type **kwargs: Any
         """
         # determine underlying orchestrator
@@ -212,17 +234,92 @@ class Consumer:
         if self.orchestrator == "kafka":
             if topic_subscribe is not None:
                 self.topic = topic_subscribe
+                self.consumer = _kafka_consumer_connect(
+                    self.topic, self.orchestrator_endpoint, **kwargs
+                )
             else:
-                self.topic = KAFKA_TOPIC
-            self.consumer = _kafka_consumer_connect(
-                self.orchestrator_endpoint, self.topic, **kwargs
-            )
+                self.topic = None
+                self.consumer = _kafka_consumer_connect(
+                    self.orchestrator_endpoint, **kwargs
+                )
         else:
             logging.warning(
                 "No orchestrator. Pipeline tools will have to be run manually."
             )
             self.consumer = None
             self.topic = None
+
+    def subscribe(self, topic: str or List[str], override: bool = False):
+        """
+        Where to have the consumer subscribe if not subscribed
+        in initialization.
+
+        :param topic: The topic/event bus to subscribe to
+        :type topic: str
+        :param override: Whether or not to remove previous
+                subscriptions for the consumer if they exist
+        """
+        # update subscriptions
+        if self.topic is None or override:
+            self.topic = topic
+        else:
+            self.topic = self.topic + topic
+
+        if self.orchestrator == "kafka":
+            _kafka_subscribe(self.consumer, self.topic)
+        else:
+            logging.info("No orchestrator. Subscription not required")
+
+    def unsubscribe(self):
+        """Unsubscribe from all current subscriptions"""
+        if self.orchestrator == "kafka":
+            _kafka_unsubscribe(self.consumer)
+        else:
+            logging.info("No orchestrator set up. No subscriptions")
+
+    def get_subscriptions(self) -> List[str]:
+        """Get the current subscriptions of the consumer"""
+        if self.orchestrator == "kafka":
+            return _kafka_get_subscriptions(self.consumer)
+        else:
+            logging.info("No orchestrator set up. No subscriptions")
+            return []
+
+    def get_messages(
+        self, filter: callable = lambda _: True
+    ) -> MLOPS_Message or List[MLOPS_Message]:
+        """
+        Get messages from wherever the consumer is subscribed. If
+        the consumer is not subscribed anywhere, it will be set to
+        the default subscription for the particular orchestrator
+
+        :param filter: a function to filter incoming messages. Must
+                result in a bool and called on an MLOPS_message.
+                Examples: `lambda msg: msg.get_topic()=="Pipeline"`
+                          `lambda msg: msg.get_creator_type()=="ingestor"
+                                    and msg.get_output() is not None
+        :type filter: callable
+
+        :return: the latest message(s) in MLOPS_Message format that
+                satisfy the filter passed
+        :rtype: MLOPS_Message or List[MLOPS_Message]
+        """
+        if self.orchestrator == "kafka":
+            # ensure consumer is subscribed to at least one topic
+            if len(self.get_subscriptions()) == 0:
+                if self.topic is None:
+                    self.topic = KAFKA_TOPIC
+                self.subscribe(self.topic)
+            return _kafka_poll_messages(self.consumer, filter)
+        else:
+            logging.info("No orchestrator set up. Cannot get messages")
+
+    def close(self):
+        """Close the consumer"""
+        if self.orchestrator == "kafka":
+            _kafka_close_consumer(self.consumer)
+        else:
+            logging.info("No orchestrator set up. Closing not required.")
 
 
 class Admin:
