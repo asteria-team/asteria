@@ -15,14 +15,6 @@ def test_serial_deserial():
 
 
 def test_building_message():
-    # test Producer/Consumer Naming
-    test_ingest = mes._set_caller_type("ingest")
-    assert test_ingest == "ingestion"
-    test_mlops = mes._set_caller_type("ETL")
-    assert test_mlops == "mlops"
-    test_bad_str = mes._set_caller_type("Coeus")
-    assert test_bad_str == "unknown"
-
     # test building MLOPS_messages
     test_msg = "Hello World"
     new_msg = mes.MLOPS_Message(
@@ -37,3 +29,12 @@ def test_building_message():
     if new_msg.get_output() is None:
         assert True
     assert new_msg.get_user_message() == test_msg
+
+    # test updating a message
+    diff_msg = "A different message"
+    new_msg.set_message_data("creator", "mlops", False)
+    new_msg.set_message_data("new_kwarg", "No set will occur")
+    new_msg.set_message_data("user_message", diff_msg)
+
+    assert new_msg.get_creator() == ["ETL", "mlops"]
+    assert new_msg.get_user_message() == diff_msg
