@@ -3,8 +3,9 @@ Test underlying kafka orchestration in a docker-compose
 format. In this case, kafka has listeners externally exposed
 """
 
-import pytest
 import logging
+
+import pytest
 
 pytest_plugings = ["docker_compose"]
 

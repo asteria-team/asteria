@@ -81,7 +81,7 @@ def _test_passed_orchestrator(orc_endpoint: str, orc: str) -> bool:
     if orc is None:
         logging.info("Orchestrator name not passed")
         return False
-    if orc not in APPROVED_ORCHESTRATORS:
+    if orc.lower() not in APPROVED_ORCHESTRATORS:
         logging.info(f"{orc} is not an approved orchestrator for the pipeline")
         return False
 
@@ -89,7 +89,7 @@ def _test_passed_orchestrator(orc_endpoint: str, orc: str) -> bool:
     if orc_endpoint is None:
         logging.info("Orchestrator endpoint not passed")
         return False
-    command = ["ping", "-c", "1", orc]
+    command = ["ping", "-c", "1", orc.lower()]
     if subprocess.call(command) != 0:
         logging.info(f"Unable to ping orchestrator at {orc_endpoint}")
         return False
@@ -127,7 +127,7 @@ class Producer:
         """
         # determine underlying orchestrator
         if _test_passed_orchestrator(orchestrator_endpoint, orchestrator):
-            self.orchestrator = orchestrator
+            self.orchestrator = orchestrator.lower()
             self.orchestrator_endpoint = orchestrator_endpoint
         else:
             (
@@ -163,21 +163,26 @@ class Producer:
                 message to kafka broker and block thread until acks
         :type flush: bool
         """
-        if self.orchestrator == "kafka":
-            if message.get_topic() is not None:
-                _kafka_send_message(
-                    self.producer,
-                    _kafka_format_topic(message.get_topic()),
-                    message,
-                    flush,
-                )
+        if isinstance(message, MLOPS_Message):
+            if self.orchestrator == "kafka":
+                if message.get_topic() is not None:
+                    _kafka_send_message(
+                        self.producer,
+                        _kafka_format_topic(message.get_topic()),
+                        message,
+                        flush,
+                    )
+                else:
+                    _kafka_send_message(
+                        self.producer, self.topic, message, flush
+                    )
             else:
-                _kafka_send_message(self.producer, self.topic, message, flush)
+                # no orchestrator case
+                logging.info(
+                    f"Message from: {message.get_creator()} with message: {message.get_user_message()} not sent. No Orchestrator"
+                )
         else:
-            # no orchestrator case
-            logging.info(
-                f"Message from: {message.get_creator()} with message: {message.get_user_message()} not sent. No Orchestrator"
-            )
+            logging.error("Message passed was not a MLOPS_Message")
 
     def flush(self) -> bool:
         """
@@ -283,6 +288,7 @@ class Consumer:
         """Unsubscribe from all current subscriptions"""
         if self.orchestrator == "kafka":
             _kafka_unsubscribe(self.consumer)
+            self.topic = None
         else:
             self.topic = None
             logging.info("No orchestrator set up. No subscriptions")

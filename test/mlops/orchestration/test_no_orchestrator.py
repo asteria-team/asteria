@@ -4,8 +4,8 @@ orchestrator to ensure failures for user
 do not occur.
 """
 
-import mlops.orchestration as orc
 import mlops.messaging as mes
+import mlops.orchestration as orc
 
 
 def test_without_orchestration():

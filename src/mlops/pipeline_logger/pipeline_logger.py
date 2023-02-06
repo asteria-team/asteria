@@ -66,7 +66,7 @@ def build_base_logger(service: str, verbose: bool):
 
 
 class PipelineLogger:
-    def __init__(self, service: str, verbose: bool = False):
+    def __init__(self, service: str = "", verbose: bool = False):
         """
         Initializes the pipeline logger
         :param service: the service or app initializing the logger

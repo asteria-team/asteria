@@ -16,12 +16,12 @@ test:
 .PHONY: isort
 isort:
 	isort --line-length 80 --profile black src/
-	isort --line-length 80 --profile black src/
+	isort --line-length 80 --profile black test/
 
 .PHONY: check-isort
 check-isort:
 	isort --check --line-length 80 --profile black src/
-	isort --check --line-length 80 --profile black src/
+	isort --check --line-length 80 --profile black test/
 
 # Format with black
 .PHONY: format
