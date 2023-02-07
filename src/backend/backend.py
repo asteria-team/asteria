@@ -10,6 +10,7 @@ from typing import Tuple
 
 import uvicorn
 from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 # TODO(Kyle): Remove for production
 from resolver import mlops_root
@@ -38,6 +39,20 @@ g_app = FastAPI()
 
 # The router for all API routes
 g_api_router = APIRouter(prefix="/api")
+
+# Allowed origins for CORS
+_origins = [
+    "http://localhost:3000",
+]
+
+# Configure CORS
+g_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # -----------------------------------------------------------------------------
 # Argument Parsing
