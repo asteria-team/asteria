@@ -84,6 +84,13 @@ def _ext(path: Path) -> str:
     return os.path.splitext(path.name)[1]
 
 
+def _dl_path(tmp_path: Path) -> Path:
+    """Create a root location for the data lake."""
+    path = tmp_path / "dl"
+    path.mkdir()
+    return path
+
+
 # -----------------------------------------------------------------------------
 # Annotation Parsing
 # -----------------------------------------------------------------------------
@@ -137,7 +144,7 @@ def test_init_succeed(tmp_path):
     """
     Creating a dataset after setting context should succeed.
     """
-    dl.set_path(f"{tmp_path / 'dl'}")
+    dl.set_path(_dl_path(tmp_path))
     _ = dl.ObjectDetectionDataset("id")
 
 
@@ -145,7 +152,7 @@ def test_empty_integrity(tmp_path):
     """
     Empty dataset should pass integrity check.
     """
-    dl.set_path(f"{tmp_path / 'dl'}")
+    dl.set_path(_dl_path(tmp_path))
     d = dl.ObjectDetectionDataset("id")
     d.verify_integrity()
 
@@ -154,7 +161,7 @@ def test_save_no_data(tmp_path):
     """
     Attempt to save without adding any data should succeed.
     """
-    dl.set_path(f"{tmp_path / 'dl'}")
+    dl.set_path(_dl_path(tmp_path))
 
     d = dl.ObjectDetectionDataset("id")
     d.save()
@@ -164,7 +171,7 @@ def test_write_single_image(tmp_path):
     """Save with a single image."""
     paths = _make_fake_images(tmp_path, 1)
 
-    dl.set_path(f"{tmp_path / 'dl'}")
+    dl.set_path(_dl_path(tmp_path))
 
     d = dl.ObjectDetectionDataset("dataset0")
     d.add_image(dl.Image(path=paths[0]))
@@ -177,7 +184,7 @@ def test_write_multi_image(tmp_path):
     """Save with some image."""
     paths = _make_fake_images(tmp_path, 5)
 
-    dl.set_path(f"{tmp_path / 'dl'}")
+    dl.set_path(_dl_path(tmp_path))
 
     d = dl.ObjectDetectionDataset("dataset0")
     for path in paths:
@@ -194,14 +201,14 @@ def test_write_multi_image(tmp_path):
 
 def test_logical0(tmp_path):
     """Construction should succeed."""
-    dl.set_path(f"{tmp_path / 'dl'}")
+    dl.set_path(_dl_path(tmp_path))
 
     _ = dl.LogicalDataset("id")
 
 
 def test_logical1(tmp_path):
     """Adding split that does not exist should raise."""
-    dl.set_path(f"{tmp_path / 'dl'}")
+    dl.set_path(_dl_path(tmp_path))
 
     d = dl.LogicalDataset("id")
     with pytest.raises(RuntimeError):
@@ -210,7 +217,7 @@ def test_logical1(tmp_path):
 
 def test_logical2(tmp_path):
     """Adding split that exists should succeed."""
-    dl.set_path(f"{tmp_path / 'dl'}")
+    dl.set_path(_dl_path(tmp_path))
 
     d = dl.ObjectDetectionDataset("id0")
     d.save()
@@ -221,7 +228,7 @@ def test_logical2(tmp_path):
 
 def test_logical3(tmp_path):
     """Adding split that exists should succeed."""
-    dl.set_path(f"{tmp_path / 'dl'}")
+    dl.set_path(_dl_path(tmp_path))
 
     d = dl.ObjectDetectionDataset("id0")
     d.save()
@@ -238,7 +245,7 @@ def test_logical4(tmp_path):
     """Integration of physical and logical."""
     paths = _make_fake_images(tmp_path, 2)
 
-    dl.set_path(f"{tmp_path / 'dl'}")
+    dl.set_path(_dl_path(tmp_path))
 
     d = dl.ObjectDetectionDataset("id0")
     d.add_image(dl.Image(path=paths[0]))

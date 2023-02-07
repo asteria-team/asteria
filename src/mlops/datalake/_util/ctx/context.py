@@ -132,12 +132,10 @@ def _allocate():
     """
     state = _global_state()
     assert state.has_path(), "Broken precondition."
+    assert state.get_path().is_dir(), "Broken precondition."
 
     if _is_allocated():
         raise RuntimeError("Data lake is already allocated.")
-
-    # Create the root directory
-    state.get_path().mkdir()
 
     # Create the sub-directories
     pdataset_path().mkdir()
@@ -157,7 +155,10 @@ def _deallocate():
     if not _is_allocated():
         raise RuntimeError("Data lake is not allocated.")
 
-    state.get_path().rmdir()
+    pdataset_path().rmdir()
+    ldataset_path().rmdir()
+    model_registry_path().rmdir()
+
     assert not _is_allocated(), "Broken postcondition."
 
 
@@ -169,15 +170,24 @@ def _is_allocated() -> bool:
     :rtype: bool
     """
     state = _global_state()
+    assert state.has_path() and state.get_path().is_dir(), "Broken invariant."
     return (
-        state.has_path()
-        and state.get_path().exists()
-        and state.get_path().is_dir()
+        pdataset_path().exists()
+        and ldataset_path().exists()
+        and model_registry_path().exists()
     )
 
 
 def _allocate_if_required():
     """Allocate the data lake, if required."""
+    state = _global_state()
+    assert state.has_path(), "Broken precondition."
+
+    if not state.get_path().is_dir():
+        raise RuntimeError(
+            f"Data lake root storage location {state.get_path()} not found."
+        )
+
     if not _is_allocated():
         _allocate()
     assert _is_allocated(), "Broken postcondition."

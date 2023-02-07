@@ -286,6 +286,44 @@ class LogicalDataset:
 
 
 # -----------------------------------------------------------------------------
+# LogicalDatasetView
+# -----------------------------------------------------------------------------
+
+
+class LogicalDatasetView:
+    """LogicalDatasetView is the base class for all dataset views."""
+
+    def __init__(self, identifier: str):
+        self.metadata = LogicalDatasetMetadata(
+            identifier=DatasetIdentifier(identifier)
+        )
+        """The dataset metadata."""
+
+        # Install hooks
+        self._load = _install_hook(self._load, self._global_hook)
+
+    @property
+    def id(self) -> DatasetIdentifier:
+        """Return the dataset identifier."""
+        return self.metadata.identifier
+
+    def _load(self):
+        """Load view from disk."""
+        dataset_dir = util.ctx.ldataset_path() / str(self.identifier)
+
+        # If the dataset does not yet exist, nothing to do
+        if not dataset_dir.is_dir():
+            return
+
+        # Load metadata
+        self.metadata = _load_metadata(dataset_dir)
+
+    def _global_hook(self):
+        """Hook invocation of all core interface methods."""
+        util.ctx.datalake_init()
+
+
+# -----------------------------------------------------------------------------
 # Metadata Computation
 # -----------------------------------------------------------------------------
 
@@ -475,7 +513,7 @@ def _save_description(dataset_dir: Path, splits: List[SplitDefinition]):
         json.dump({"splits": [split.to_json() for split in splits]}, f)
 
 
-def _load_metadata(dataset_dir: Path) -> ObjectDetectionDatasetMetadata:
+def _load_metadata(dataset_dir: Path) -> LogicalDatasetMetadata:
     """
     Load metadata from dataset directory.
 
@@ -483,15 +521,15 @@ def _load_metadata(dataset_dir: Path) -> ObjectDetectionDatasetMetadata:
     :type: Path
 
     :return: The loaded metadata
-    :rtype: ObjectDetectionDatasetMetadata
+    :rtype: LogicalDatasetMetadata
     """
     assert dataset_dir.is_dir(), "Broken precondition."
 
     metadata_path = dataset_dir / util.ctx.metadata_filename()
     if not metadata_path.is_file():
-        return ObjectDetectionDatasetMetadata()
+        return LogicalDatasetMetadata()
     with metadata_path.open("r") as f:
-        return ObjectDetectionDatasetMetadata.from_json(json.load(f))
+        return LogicalDatasetMetadata.from_json(json.load(f))
 
 
 def _load_description(dataset_dir: Path) -> List[SplitDefinition]:

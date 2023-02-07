@@ -4,3 +4,4 @@ __pycache__/
 .pytest_cache/
 mlops.egg-info
 .tox/
+UNKNOWN.egg-info
