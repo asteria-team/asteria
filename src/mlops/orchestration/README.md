@@ -36,16 +36,16 @@ One orchestrator option is Kafka. All Producer and Consumer methods can be used 
 The following are some commonly used keyword arguments for kafka:
 
 Producer
-    - *acks*: sets when the producer returns from a send with success
-    - *max_block_ms*: the maximum amount of time to block during send
-    - *max_request_size*: the maximum size (bytes) of a request to send (single message or in batch)
-    - *api_version*: The version of Kafka in use. This helps with connection and may change some default settings and functionalities
+    * *acks*: sets when the producer returns from a send with success
+    * *max_block_ms*: the maximum amount of time to block during send
+    * *max_request_size*: the maximum size (bytes) of a request to send (single message or in batch)
+    * *api_version*: The version of Kafka in use. This helps with connection and may change some default settings and functionalities
 
 Consumer:
-    - *group_id*: sets the group the Consumer is a part of. Will change how the Consumer consumes messages in the topic if multiple Consumers are in the group
-    - *auto_offset_reset*: sets the policy for where in the offset the Consumer starts reading from. If set to "earliest" the Consumer will start at the earliest available (beginning) of the logs.
-    - *max_poll_records*: The maximum number of records to return in a single poll call. Note that this limit is prior to any additional filters that may be added to the Consumer at a later point. 
-    - *api_version*: The version of Kafka in use. This helps with connection and may change some default settings and functionalities
+    * *group_id*: sets the group the Consumer is a part of. Will change how the Consumer consumes messages in the topic if multiple Consumers are in the group
+    * *auto_offset_reset*: sets the policy for where in the offset the Consumer starts reading from. If set to "earliest" the Consumer will start at the earliest available (beginning) of the logs.
+    * *max_poll_records*: The maximum number of records to return in a single poll call. Note that this limit is prior to any additional filters that may be added to the Consumer at a later point. 
+    * *api_version*: The version of Kafka in use. This helps with connection and may change some default settings and functionalities
 Further, if Kafka is the orchestrator, it is assumed that it is located at `"kafka:9092"`. If this is not the case, the orchestrator and endpoint need to passed to both the Producer and Consumer in order to connect.
 
 Finally, the Consumer utilizes the method *poll*. This means the Consumer tries to pull messages that are available starting at the last offset it read from (or that the group it is in read from). Thus, in order to get regular updates, it is recommended that this call should be in while loop that will remain `True` until the Consumer (or pipeline) is complete with all work. Additionally, note that *poll* does run some set up the first time it is called within the context of a Consumer which may cause it to return nothing even if messages exist. Additional calls will allow it to find and read those messages.
@@ -60,13 +60,13 @@ The following code snippet initializes Producers and sends a message to topics i
 import mlops.orchestration as orc
 
 # Producer determines the orchestrator
-new_prod = orc.Producer(topic="Cool-New-Topic")
+new_prod = orc.Producer("Cool-New-Topic")
 
 # Producer gets orchestrator passed with multiple topics and additional keyword arguments
 new_prod2 = orc.Producer(
-        orchestrator_endpoint="kafka:9092"
+        topic=["Cool-New-Topic", "Another-Topic"],
         orchestrator="kafka",
-        topic=["Cool-New-Topic", "Another-Topic"]
+        orchestrator_endpoint="kafka:9092"
         acks="all",
         max_request_size=20000
     )
@@ -83,13 +83,13 @@ The following code snippet initializes a Consumer and reads messages from the to
 import mlops.orchestration as orc
 
 # Consumer determines orchestrator with additional keyword arguments
-new_con = orc.Consumer(topic="Cool-New-Topic", auto_offset_reset="earliest")
+new_con = orc.Consumer("Cool-New-Topic", auto_offset_reset="earliest")
 
 # Consumer gets orchestrator passed with multiple topics to subscribe to
 new_con2 = orc.Consumer(
-        "kafka:9092",
+        ["Cool-New-Topic", "some-other-topic"],
         "kafka",
-        topic = ["Cool-New-Topic", "some-other-topic"]
+        "kafka:9092"
     )
 
 # subscribe to another topic

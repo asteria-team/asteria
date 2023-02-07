@@ -57,7 +57,11 @@ def _get_orchestrator() -> Union[str, str]:
     for orch, endpoint in endpoint_dict.items():
         command = ["ping", "-c", "1", orch]
         if subprocess.call(command) == 0:
-            # ping successful, return the name
+            # ping successful, return data
+            return orch, endpoint
+        command = ["ping", "-c", "1", endpoint]
+        if subprocess.call(command) == 0:
+            # ping successful, return data
             return orch, endpoint
     logging.warning("No orchestrator found. Is one running?")
     return None, None
@@ -89,11 +93,15 @@ def _test_passed_orchestrator(orc_endpoint: str, orc: str) -> bool:
     if orc_endpoint is None:
         logging.info("Orchestrator endpoint not passed")
         return False
+    # try to ping orchestrator to make sure it is up
     command = ["ping", "-c", "1", orc.lower()]
-    if subprocess.call(command) != 0:
-        logging.info(f"Unable to ping orchestrator at {orc_endpoint}")
-        return False
-    return True
+    if subprocess.call(command) == 0:
+        return True
+    command = ["ping", "-c", "1", orc_endpoint]
+    if subprocess.call(command) == 0:
+        return True
+    logging.info(f"Unable to ping orchestrator at {orc_endpoint}")
+    return False
 
 
 # ------------------------------------------------
@@ -104,21 +112,21 @@ def _test_passed_orchestrator(orc_endpoint: str, orc: str) -> bool:
 class Producer:
     def __init__(
         self,
-        orchestrator_endpoint: str = None,
-        orchestrator: str = None,
         topic: str or List[str] = None,
+        orchestrator: str = None,
+        orchestrator_endpoint: str = None,
         **kwargs,
     ):
         """
         Initialize the higher level Producer class exposed to the user
 
-        :param orchestrator_endpoint: The endpoint of the orchestrator
-        :type orchestrator_endpoint: str
-        :param orchestrator: the name of the orchestrator in use
-        :type orchestrator: str
         :param topic: the event bucket this producer writes to. Should not
                 contain any white spaces. These will be removed.
         :type topic: str or List[str]
+        :param orchestrator: the name of the orchestrator in use
+        :type orchestrator: str
+        :param orchestrator_endpoint: The endpoint of the orchestrator
+        :type orchestrator_endpoint: str
         :param `**kwargs`: any additional configuration requirements desired
                 for the Producer. Keys based on underlying orchestration
                 requirements. Look at the docs for the orchestrator wrapper
@@ -211,22 +219,22 @@ class Producer:
 class Consumer:
     def __init__(
         self,
-        orchestrator_endpoint: str = None,
-        orchestrator: str = None,
         topic_subscribe: str or List[str] = None,
+        orchestrator: str = None,
+        orchestrator_endpoint: str = None,
         **kwargs,
     ):
         """
         Initialize the higher level Consumer class exposed to the user
 
-        :param orchestrator_endpoint: The endpoint of the orchestrator
-        :type orchestrator_endpoint: str
-        :param orchestrator: the name of the orchestrator in use
-        :type orchestrator: str
         :param topic_subscribe: where to read/ingests the messages from.
                 For kafka this is the topic. Should not
                 contain any white spaces. These will be removed.
         :type topic_subscription: str
+        :param orchestrator: the name of the orchestrator in use
+        :type orchestrator: str
+        :param orchestrator_endpoint: The endpoint of the orchestrator
+        :type orchestrator_endpoint: str
         :param **kwargs: any additional configuration requirements desired
                 for the Consumer. Keys based on underlying orchestration
                 requirements. Look at the docs for the orchestrator wrapper

@@ -1,11 +1,11 @@
 FROM python:latest
 
 #to COPY the remote file at working directory in container
-COPY requirements.txt .
-COPY create_producer.py .
-COPY create_consumer.py .
-COPY start_test.sh .
-COPY mlops/ ./mlops/
+COPY test/mlops/orchestration/producer-consumer/requirements.txt .
+COPY test/mlops/orchestration/producer-consumer/create_producer.py .
+COPY test/mlops/orchestration/producer-consumer/create_consumer.py .
+COPY test/mlops/orchestration/producer-consumer/start_test.sh .
+COPY src/mlops/ ./mlops/
 
 RUN pip install -r requirements.txt
 

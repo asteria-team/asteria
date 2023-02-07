@@ -11,9 +11,9 @@ dc_endpoint = "kafka:9092"
 def test_kafka_consumer():
     """Test reading messages to kafka"""
     new_con = orc.Consumer(
-        dc_endpoint,
-        orch,
         "Cool-New-Topic",
+        orch,
+        dc_endpoint,
         auto_offset_reset="earliest",
     )
     new_con.subscribe("Another-Topic")

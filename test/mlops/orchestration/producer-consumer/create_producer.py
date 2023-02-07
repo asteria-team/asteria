@@ -12,9 +12,9 @@ dc_endpoint = "kafka:9092"
 def test_kafka_producer():
     """Test sending messages to kafka"""
     new_prod = Producer(
-        orchestrator_endpoint=dc_endpoint,
-        orchestrator=orch,
         topic="Cool-New-Topic",
+        orchestrator=orch,
+        orchestrator_endpoint=dc_endpoint,
     )
     mlops_msg = MLOPS_Message(
         Message_Type.START.name,
@@ -28,9 +28,9 @@ def test_kafka_producer():
 
     """ Test sending a message to multiple topics """
     new_prod2 = Producer(
-        orchestrator_endpoint=dc_endpoint,
-        orchestrator=orch,
-        topic=["Cool-New-Topic", "Sick-Topic"],
+        ["Cool-New-Topic", "Sick-Topic"],
+        orch,
+        dc_endpoint,
     )
     mlops_msg2 = MLOPS_Message(
         Message_Type.COMPLETE.name,
