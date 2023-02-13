@@ -159,9 +159,7 @@ class Producer:
             self.producer = None
             self.topic = None
 
-    def send(
-        self, message: MLOpsMessage = MLOpsMessage(), flush: bool = False
-    ):
+    def send(self, message: MLOpsMessage = MLOpsMessage(), flush: bool = False):
         """
         Directs producer class messages
 

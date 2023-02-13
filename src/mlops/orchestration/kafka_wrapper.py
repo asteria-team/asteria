@@ -12,7 +12,7 @@ from kafka import KafkaConsumer, KafkaProducer
 from kafka.errors import KafkaError, KafkaTimeoutError
 from kafka.structs import TopicPartition
 
-from ..messaging import MLOpsMessage, json_deserializer, json_serializer
+from ..messaging import MLOpsMessage
 
 # -----------------------------------------------
 # Helper Functions
@@ -104,7 +104,6 @@ def _kafka_producer_connect(
         for trys in range(con_retries):
             kp = KafkaProducer(
                 bootstrap_servers=endpoint,
-                value_serializer=json_serializer,
                 **kwargs,
             )
             if kp is not None and kp.bootstrap_connected():
@@ -146,13 +145,11 @@ def _kafka_consumer_connect(
                 kc = KafkaConsumer(
                     subscription,
                     bootstrap_servers=endpoint,
-                    value_deserializer=json_deserializer,
                     **kwargs,
                 )
             else:
                 kc = KafkaConsumer(
                     bootstrap_servers=endpoint,
-                    value_deserializer=json_deserializer,
                     **kwargs,
                 )
             if kc is not None and kc.bootstrap_connected():

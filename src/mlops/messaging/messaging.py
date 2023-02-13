@@ -7,7 +7,10 @@ messages apply to them and process those messages accordingly
 
 import logging
 from enum import Enum
-from typing import Any
+from pathlib import Path
+from typing import Any, List, Union
+
+from .serialize import _json_deserializer, _json_serializer
 
 # -----------------------------------------------
 # Messaging Data Restrictions
@@ -100,8 +103,11 @@ class MessageType(Enum):
     OTHER = "OTHER"
     """ Alternative message type option for unique user input """
 
+    def __str__(self):
+        return self.value
 
-class AnnotationStage(Enum):
+
+class Stages(Enum):
     STAGED = "STAGED"
     """ Dataset to be annotated is staged in shared FS """
 
@@ -114,8 +120,6 @@ class AnnotationStage(Enum):
     UNSTAGED = "UNSTAGED"
     """ Dataset and annotations have been moved from FS to Datalake """
 
-
-class MLOpsStage(Enum):
     TRAIN = "TRAIN"
     """ Training model operations """
 
@@ -127,6 +131,9 @@ class MLOpsStage(Enum):
 
     ETL = "ETL"
     """ ETL or pre-processing operations """
+
+    def __str__(self):
+        return self.value
 
 
 # -----------------------------------------------
@@ -148,6 +155,164 @@ def _set_caller_type(user_input: str) -> str:
 # -----------------------------------------------
 
 
+class MessageBuilder:
+    """
+    User-friendly interface to build an MLOpsMessage. Once build is
+    called, the resulting MLOps_Message will be immutable
+
+    At minimum, every message will contain a message type and a creator
+    type. If the caller does not pass any values, both of these values
+    will be set as `MessageType.Other` and `unkown` respectively. It
+    is recommended to pass at least a message type and a creator type.
+
+    MessageBuilder supports inputs for all information that can be
+    passed in the defined MLOpsMessage structure, and ensures message
+    is constructed correctly
+
+    Arguments that can be passed:
+    :param msg_type: The type of message being sent. If no user input is
+                passed for this parameter, it will default to 'OTHER'
+    :type msg_type: MessageType
+    :param topic: the topic/stream/log to publish the message to
+            This will be set when a message is sent
+    :type topic: Union[str, List[str]]
+    :param creator: the user passed name or id for the creator
+    :type creator: str
+    :param creator_type: the standardized type of creator. If no
+            creator_type is passed, it will be set to `unknown`
+    :type creator_type: str
+    :param stage: the stage within a tool the message refers to
+    :type stage: Stages
+    :param next_task: The subsequent task(s) that should start
+            with the sending of the message
+    :param user_message: The message passed by the producer
+    :param user_message: str
+    :param retries: The number of retries that have occured
+    :type retries: int
+    :param output: The output from the event
+    :type output: str or Path or List[str] or List[Path]
+    :param recipient: The intended recipient of the message
+    :type recipient: str or List[str]
+    :param additional_data: any other arguments desired
+    :type additional_data: Any
+    """
+
+    def __init__(self):
+        """Initializes a MessageBuilder"""
+        self._msg_type = MessageType.OTHER
+        self._topic = None
+        self._creator = None
+        self._creator_type = "unknown"
+        self._stage = None
+        self._next_task = None
+        self._user_message = None
+        self._retries = 0
+        self._output = None
+        self._recipient = None
+        self._additional_data = None
+
+    def with_msg_type(self, msg_type: MessageType):
+        """Add message type to builder"""
+        self._msg_type = msg_type
+        return self
+
+    def with_topic(self, topic: Union[str, List[str]]):
+        """Add topic(s) to builder"""
+        self._topic = topic
+        return self
+
+    def with_creator(self, creator: str):
+        """Add a creator to builder"""
+        self._creator = creator
+        return self
+
+    def with_creator_type(self, creator_type: str):
+        """Add creator type to builder"""
+        self._creator_type = _set_caller_type(creator_type)
+        return self
+
+    def with_stage(self, stage: Stages):
+        """Add a stage to builder"""
+        self._stage = stage
+        return self
+
+    def with_next_task(self, task: Union[str, List[str]]):
+        """Add tasks to builder"""
+        self._next_task = task
+        return self
+
+    def with_user_msg(self, usr_msg: str):
+        """Add a user message to builder"""
+        self._user_message = usr_msg
+        return self
+
+    def with_retries(self, retries: int):
+        """Add number of retries to builder"""
+        self._retries = retries
+        return self
+
+    def with_output(self, output: Union[str, List[str], Path, List[Path]]):
+        """Add output(s) to builder"""
+        self._output = output
+        return self
+
+    def with_recipient(self, recipient: Union[str, List[str]]):
+        """Add recipient(s) to builder"""
+        self._recipient = recipient
+        return self
+
+    def with_additional_data(self, add_data: Any):
+        """Add additional user data to builder"""
+        self._additional_data = add_data
+        return self
+
+    def build(self):
+        """
+        Build the MLOpsMessage class with the previously passed input.
+        Ensures integrity of data being passed
+
+        :return: an MLOpsMessage to use with the orchestration
+        :rtype: MLOpsMessage
+        """
+        assert isinstance(self._msg_type, MessageType)
+        assert isinstance(self._creator_type, str)
+
+        return MLOpsMessage(
+            msg_type=self._msg_type,
+            topic=self._topic,
+            creator=self._creator,
+            creator_type=self._creator_type,
+            stage=self._stage,
+            next_task=self._next_task,
+            usr_msg=self._user_message,
+            retries=self._retries,
+            output=self._output,
+            recipient=self._recipient,
+            add_data=self._additional_data,
+        )
+
+class MessageDeserializer:
+    def __init__(self, serial_msg: bytearray):
+        self.json = _json_deserializer(serial_msg)
+    
+    def __call__(self):
+        return (
+            MessageBuilder()
+            .with_msg_type(MessageType(self.json['msg_type']))
+            .with_topic(self.json["topic"])
+            .with_creator(self.json["creator"])
+            .with_creator_type(self.json["creator_type"])
+            .with_stage(Stages(self.json["stage"]) if self.json["stage"] is not None else None)
+            .with_next_task(self.json["next_task"])
+            .with_user_msg(self.json["usr_msg"])
+            .with_retries(int(self.json["retries"]))
+            .with_output(self.json["output"])
+            .with_recipient(self.json["recipient"])
+            .with_additional_data(self.json["add_data"])
+            .build()
+        )
+
+
 class MLOpsMessage:
     """
     Structured message that is passed in the MLOPS_Pipeline and most
@@ -157,175 +322,106 @@ class MLOpsMessage:
     type. If the caller does not pass any values, both of these values
     will be set as `MessageType.Other` and `unkown` respectively. It
     is recommended to pass at least a message type and a creator type.
+
+    This class is only intended to be built with the :class:`MessageBuilder`
     """
 
-    def __init__(
-        self, msg_type: MessageType = MessageType.OTHER, **kwargs
-    ):
+    def __init__(self, **kwargs):
         """
         Create a standard message format for orchestration in
-        the MLOPS Pipeline.
-
-        :param msg_type: The type of message being sent. If no user input is
-                passed for this parameter, it will default to 'OTHER'
-        :type msg_type: MessageType
-        :param `**kwargs`: optional arguments provided as keywords that can be
-                used to add additional information to a MLOpsMessage.
-
-                :Keyword Arguments:
-                    :param topic: the topic/stream/log to publish the message to
-                            This will be set when a message is sent
-                    :type topic: str
-                    :param creator: the user passed name or id for the creator
-                    :type creator: str
-                    :param creator_type: the standardized type of creator. If no
-                            creator is passed, it will be set to `unknown`
-                    :type creator_type: str
-                    :param stage: the stage within a tool the message refers to
-                    :type stage: AnnotationStage or MLOpsStage
-                    :param user_message: The message passed by the producer
-                    :param user_message: str
-                    :param retries: The number of retries that have occured
-                    :type retries: int
-                    :param output: The output from the event
-                    :type output: str or Path or List[str] or List[Path]
-                    :param recipient: The intended recipient of the message
-                    :type recipient: str or List[str]
-                    :param additional_arguments: any other arguments desired
-                    :type additional_arguments: Any
+        the MLOPS Pipeline. See :class:`MessageBuilder` for more information
         """
-        self.msg_type = msg_type
-        kwargs_dict = kwargs
-        # ensure 'creator_type' is standardized
-        if "creator_type" not in kwargs_dict.keys():
-            kwargs_dict["creator_type"] = (
-                _set_caller_type(kwargs_dict["creator"])
-                if "creator" in kwargs_dict.keys()
-                else "unknown"
-            )
-        else:
-            kwargs_dict["creator_type"] = _set_caller_type(
-                kwargs_dict["creator_type"]
-            )
-        self.kwargs = kwargs_dict
+        self.kwargs = kwargs
+
+    """ Message conversion for sending and recieving """
 
     def to_json(self):
         """Create a JSON of the MLOpsMessage"""
         return {
-            "topic": self.get_topic(),
-            "msg_type": self.msg_type,
-            "creator": self.get_creator(),
-            "creator_type": self.get_creator_type(),
-            "stage": self.get_stage(),
-            "user_message": self.get_user_message(),
-            "retries": self.get_retries(),
-            "output": self.get_output(),
-            "recipient": self.get_recipient(),
-            "additional_arguments": self.get_additional_arguments(),
+            "msg_type": str(self.message_type),
+            "topic": self.topic,
+            "creator": self.creator,
+            "creator_type": self.creator_type,
+            "stage": str(self.stage) if self.stage is not None else None,
+            "next_task": self.next_task,
+            "usr_msg": self.user_message,
+            "retries": self.retries,
+            "output": self.output,
+            "recipient": self.recipient,
+            "add_data": self.additional_data,
         }
 
-    """ Pull data from the message """
+    def json_serialization(self):
+        """Serialize a MLOpsMessage to send to orchestrator"""
+        return _json_serializer(self.to_json())
 
-    def get_topic(self):
-        """Get the topic(s) if passed in initialization"""
-        return self.kwargs["topic"] if "topic" in self.kwargs.keys() else None
+    def json_deserialization(self):
+        """
+        Deserialize a MLOpsMessage recieved from an orchestrator.
+        Note that the current instantiation of an MLOpsMessage
+        when this is called is a json bytearray. It will be
+        deserialized and the resulting dictionary will be the
+        internally tracked keyword arguments
+        """
+        self.kwargs = _json_deserializer(self)
 
-    def get_msg_type(self):
+    """ Read data from the message """
+
+    @property
+    def message_type(self):
         """Get the type of the message"""
-        return self.msg_type
+        return self.kwargs["msg_type"]
 
-    def get_creator_type(self):
+    @property
+    def topic(self):
+        """Get the topic(s) if passed in initialization"""
+        return self.kwargs["topic"]
+
+    @property
+    def creator(self):
+        """Get the creator name"""
+        return self.kwargs["creator"]
+
+    @property
+    def creator_type(self):
         """Get the creator type"""
         return self.kwargs["creator_type"]
 
-    def get_creator(self):
-        """Get the creator name"""
-        return (
-            self.kwargs["creator"] if "creator" in self.kwargs.keys() else None
-        )
-
-    def get_stage(self):
+    @property
+    def stage(self):
         """Get the stage in the pipeline"""
-        return self.kwargs["stage"] if "stage" in self.kwargs.keys() else None
+        return self.kwargs["stage"]
 
-    def get_user_message(self):
+    @property
+    def next_task(self):
+        """Get the next task(s) that should happen"""
+        return self.kwargs["next_task"]
+
+    @property
+    def user_message(self):
         """Get user message"""
-        return (
-            self.kwargs["user_message"]
-            if "user_message" in self.kwargs.keys()
-            else None
-        )
+        return self.kwargs["usr_msg"]
 
-    def get_retries(self):
+    @property
+    def retries(self):
         """Get number of retries the event has done"""
-        return (
-            self.kwargs["retries"] if "retries" in self.kwargs.keys() else None
-        )
+        return self.kwargs["retries"]
 
-    def get_output(self):
+    @property
+    def output(self):
         """
         Get the output of the stage/tool in the pipeline. This is useful
         if a dataset or model is created and the user wants to direct the
         next tool to its location in storage
         """
-        return self.kwargs["output"] if "output" in self.kwargs.keys() else None
+        return self.kwargs["output"]
 
-    def get_recipient(self):
+    @property
+    def recipient(self):
         """Get the target recipient"""
-        return (
-            self.kwargs["recipient"]
-            if "recipient" in self.kwargs.keys()
-            else None
-        )
+        return self.kwargs["recipient"]
 
-    def get_additional_arguments(self):
-        """Get additional arguments that may have been passed by a producer"""
-        return (
-            self.kwargs["additional_arguments"]
-            if "additional_arguments" in self.kwargs.keys()
-            else None
-        )
-
-    """ Set/update message contents """
-
-    def set_message_data(
-        self, msg_section: str, new_input: Any, override: bool = True
-    ):
-        """
-        Set or reset contents in an MLOpsMessage. If
-        override is not passed, new user input will override
-        any previous input
-
-        :param msg_section: The MLOpsMessage item to change
-        :type msg_section: str
-        :param new_input: The new user input for the item
-        :type new_input: Any
-        :param override: Flag to determine whether to override
-                previous input
-        :type override: bool
-        """
-        if msg_section in ALLOWED_MESSAGE_KWARGS:
-            if override:
-                self.kwargs[msg_section] = new_input
-            else:
-                if isinstance(self.kwargs[msg_section], list):
-                    if isinstance(new_input, list):
-                        self.kwargs[msg_section] = self.kwargs[
-                            msg_section
-                        ].extend(new_input)
-                    else:
-                        self.kwargs[msg_section] = self.kwargs[
-                            msg_section
-                        ].append(new_input)
-                else:
-                    if isinstance(new_input, list):
-                        self.kwargs[msg_section] = self.kwargs[
-                            msg_section
-                        ].append(new_input)
-                    else:
-                        self.kwargs[msg_section] = [
-                            self.kwargs[msg_section],
-                            new_input,
-                        ]
-        else:
-            logging.info(f"{msg_section} is not recognized in MLOpsMessage.")
+    @property
+    def additional_data(self):
+        """Get additional data that may have been passed by a producer"""
+        return self.kwargs["add_data"]

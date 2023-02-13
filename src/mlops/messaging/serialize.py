@@ -12,7 +12,7 @@ ENCODER = "utf-8"
 # -----------------------------------------------
 
 
-def json_serializer(msg_to_serial: Dict[str, Any]) -> str:
+def _json_serializer(msg_to_serial: Dict[str, Any]) -> str:
     """
     Serialize a dictionary into a json string
 
@@ -28,7 +28,7 @@ def json_serializer(msg_to_serial: Dict[str, Any]) -> str:
         return json.dumps(msg_to_serial).encode(ENCODER)
 
 
-def json_deserializer(serial_msg: bytearray) -> Dict[str, Any]:
+def _json_deserializer(serial_msg: bytearray) -> Dict[str, Any]:
     """
     Deserialize a json bytearray into a dictionary
 

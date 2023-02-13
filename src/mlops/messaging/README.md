@@ -36,10 +36,10 @@ mlops_msg = mes.MLOpsMessage(
 
 #### Set data in an MLOpsMessage
 
-Using the same message we previously created, we can update the contents of the message by calling the general purpose *set_message_data* method. After the *set_message_data* is called for `"stage"` the `mlops_msg.get_stage()` call will return `mes.AnnotationStage.STAGED`.
+Using the same message we previously created, we can update the contents of the message by calling the general purpose *set_message_data* method. After the *set_message_data* is called for `"stage"` the `mlops_msg.get_stage()` call will return `mes.Stages.STAGED`.
 
 ```
-mlops_msg.set_message_data("stage", mes.AnnotationStage.STAGED)
+mlops_msg.set_message_data("stage", mes.Stages.STAGED)
 mlops_msg.set_message_data("additional_arguments", {"my_dict": "fizzbuzz"})
 ```
 

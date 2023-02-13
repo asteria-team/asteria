@@ -33,7 +33,7 @@ def test_kafka_producer():
         dc_endpoint,
     )
     mlops_msg2 = MLOpsMessage(
-        MessagType.COMPLETE,
+        MessageType.COMPLETE,
         creator="training",
         user_message="Hello Pipeline",
         output="/dataset/data",
