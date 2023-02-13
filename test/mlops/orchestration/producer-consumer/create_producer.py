@@ -2,7 +2,7 @@
 Test producer in context of kafka orchestration docker-compose
 """
 
-from mlops.messaging import Message_Type, MLOPS_Message
+from mlops.messaging import MessageType, MLOpsMessage
 from mlops.orchestration import Producer
 
 orch = "kafka"
@@ -16,8 +16,8 @@ def test_kafka_producer():
         orchestrator=orch,
         orchestrator_endpoint=dc_endpoint,
     )
-    mlops_msg = MLOPS_Message(
-        Message_Type.START.name,
+    mlops_msg = MLOpsMessage(
+        MessageType.START,
         creator="ingest",
         user_message="Hello World",
         output="/dataset/data",
@@ -32,8 +32,8 @@ def test_kafka_producer():
         orch,
         dc_endpoint,
     )
-    mlops_msg2 = MLOPS_Message(
-        Message_Type.COMPLETE.name,
+    mlops_msg2 = MLOpsMessage(
+        MessagType.COMPLETE,
         creator="training",
         user_message="Hello Pipeline",
         output="/dataset/data",

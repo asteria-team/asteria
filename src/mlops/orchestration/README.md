@@ -12,7 +12,7 @@ If connections cannot be made or no underlying orchestration exists, calls to th
 
 The Producer is used to send messages to the orchestrator. It can be called without any user input and will automatically detect the underlying orchestrator in that case and connect to it. If the orchestrator is not in a normally accessed location (for example Kafka is generally located at `"kafka:9092"` in the context of a docker or docker-compose) the user must pass the name and endpoint of the orchestrator in order to allow the Producer to connect and send messages. In addition, the user can pass topics the Producer should write messages to and additional key word arguments that can be passed to the underlying orchestration specific function to better control the behavior of the Producer.
 
-The Producer has three methods: *send*, *flush*, and *close*. Send will push messages to the orchestrator. If specific message content needs to be passed, the user needs to pass an MLOPS_Message. If the desire is to run the producer completely synchronous, the user can set the flush flag to `True`. However, note that this will cause the Producer to block until it confirms that the message(s) have been sent and propogated to the orchestrator and will cause problems if more messages need to be sent. Without flush, messages will send asynronously and the Producer can continue to send messages normally. 
+The Producer has three methods: *send*, *flush*, and *close*. Send will push messages to the orchestrator. If specific message content needs to be passed, the user needs to pass an MLOpsMessage. If the desire is to run the producer completely synchronous, the user can set the flush flag to `True`. However, note that this will cause the Producer to block until it confirms that the message(s) have been sent and propogated to the orchestrator and will cause problems if more messages need to be sent. Without flush, messages will send asynronously and the Producer can continue to send messages normally. 
 
 The flush method does the same task that a `True` flush flag in send does, but it can be used when the Producer is complete with all of its messages and the user wants to ensure all messages propgate. This is unnecessary in most cases.
 
@@ -27,7 +27,7 @@ The Consumer has five methods: *subscribe*, *unsubscribe*, *get_subscriptions*, 
 
 The three subscribe methods help the user manage what topic(s) the consumer will pull from when getting messages. Subscribe allows the user to add or override where the Consumer pulls messages from. Note that subscriptions add after initialization my impact what messages the Consumer gets. Unsubscribe removes all subscriptions for the Consumer. Until a new subscription is added, the Consumer will be unable to get messages. The final method allows a user to see a list of what the consumer is currently subscribed to. No subscriptions return an empty list.
 
-The final method *get_messages* is how the Consumer pulls messages from the orchestrator. It takes a callable filter that defaults to `True` (in other words all messages are returned). The filter can help reduce the number of messages being returned by only returning relevant data. The filter should use the MLOPS_Message class methods to interact with the messages. 
+The final method *get_messages* is how the Consumer pulls messages from the orchestrator. It takes a callable filter that defaults to `True` (in other words all messages are returned). The filter can help reduce the number of messages being returned by only returning relevant data. The filter should use the MLOpsMessage class methods to interact with the messages. 
 
 #### Use with Kafka
 
@@ -71,7 +71,7 @@ new_prod2 = orc.Producer(
         max_request_size=20000
     )
 
-# Send a message. Note mlops_msg is an instance of the MLOPS_Message class
+# Send a message. Note mlops_msg is an instance of the MLOpsMessage class
 new_prod.send(mlops_msg)
 new_prod2.send(mlops_msg)
 ```

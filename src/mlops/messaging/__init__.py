@@ -1,16 +1,16 @@
 from .messaging import (
-    Annotation_Stage,
-    Message_Type,
-    MLOPS_Message,
-    Mlops_Stage,
+    AnnotationStage,
+    MessageType,
+    MLOPSMessage,
+    MlopsStage,
 )
 from .serialize import json_deserializer, json_serializer
 
 __all__ = [
-    "Message_Type",
-    "Annotation_Stage",
-    "Mlops_Stage",
-    "MLOPS_Message",
+    "MessageType",
+    "AnnotationStage",
+    "MLOpsStage",
+    "MLOpsMessage",
     "json_serializer",
     "json_deserializer",
 ]

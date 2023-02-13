@@ -11,7 +11,7 @@ import mlops.orchestration as orc
 def test_without_orchestration():
     # producer
     new_prod = orc.Producer(orchestrator="None", topic="New Topic")
-    mlops_msg = mes.MLOPS_Message(mes.Message_Type.INPROGRESS.name)
+    mlops_msg = mes.MLOpsMessage(mes.MessageType.INPROGRESS)
     new_prod.send(mlops_msg)
     new_prod.send(mlops_msg, flush=False)
     assert not new_prod.flush()

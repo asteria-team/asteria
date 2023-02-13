@@ -15,10 +15,10 @@ def test_serial_deserial():
 
 
 def test_building_message():
-    # test building MLOPS_messages
+    # test building MLOpsMessages
     test_msg = "Hello World"
-    new_msg = mes.MLOPS_Message(
-        mes.Message_Type.START.name,
+    new_msg = mes.MLOpsMessage(
+        mes.MessageType.START,
         topic="Pipeline",
         creator="ETL",
         user_message=test_msg,

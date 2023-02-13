@@ -79,7 +79,7 @@ ALLOWED_MESSAGE_KWARGS = [
 # -----------------------------------------------
 
 
-class Message_Type(Enum):
+class MessageType(Enum):
     """The message type"""
 
     START = "START"
@@ -101,7 +101,7 @@ class Message_Type(Enum):
     """ Alternative message type option for unique user input """
 
 
-class Annotation_Stage(Enum):
+class AnnotationStage(Enum):
     STAGED = "STAGED"
     """ Dataset to be annotated is staged in shared FS """
 
@@ -115,7 +115,7 @@ class Annotation_Stage(Enum):
     """ Dataset and annotations have been moved from FS to Datalake """
 
 
-class Mlops_Stage(Enum):
+class MLOpsStage(Enum):
     TRAIN = "TRAIN"
     """ Training model operations """
 
@@ -148,19 +148,19 @@ def _set_caller_type(user_input: str) -> str:
 # -----------------------------------------------
 
 
-class MLOPS_Message:
+class MLOpsMessage:
     """
     Structured message that is passed in the MLOPS_Pipeline and most
     commonly utilized by the underlying orchestration of the pipeline
 
     At minimum, every message will contain a message type and a creator
     type. If the caller does not pass any values, both of these values
-    will be set as `Message_Type.Other` and `unkown` respectively. It
+    will be set as `MessageType.Other` and `unkown` respectively. It
     is recommended to pass at least a message type and a creator type.
     """
 
     def __init__(
-        self, msg_type: Message_Type = Message_Type.OTHER.name, **kwargs
+        self, msg_type: MessageType = MessageType.OTHER, **kwargs
     ):
         """
         Create a standard message format for orchestration in
@@ -168,9 +168,9 @@ class MLOPS_Message:
 
         :param msg_type: The type of message being sent. If no user input is
                 passed for this parameter, it will default to 'OTHER'
-        :type msg_type: Message_Type.name
+        :type msg_type: MessageType
         :param `**kwargs`: optional arguments provided as keywords that can be
-                used to add additional information to a MLOPS_Message.
+                used to add additional information to a MLOpsMessage.
 
                 :Keyword Arguments:
                     :param topic: the topic/stream/log to publish the message to
@@ -182,7 +182,7 @@ class MLOPS_Message:
                             creator is passed, it will be set to `unknown`
                     :type creator_type: str
                     :param stage: the stage within a tool the message refers to
-                    :type stage: Annotation_Stage.name or MLOPS_stage.name
+                    :type stage: AnnotationStage or MLOpsStage
                     :param user_message: The message passed by the producer
                     :param user_message: str
                     :param retries: The number of retries that have occured
@@ -210,7 +210,7 @@ class MLOPS_Message:
         self.kwargs = kwargs_dict
 
     def to_json(self):
-        """Create a JSON of the MLOPS_Message"""
+        """Create a JSON of the MLOpsMessage"""
         return {
             "topic": self.get_topic(),
             "msg_type": self.msg_type,
@@ -292,11 +292,11 @@ class MLOPS_Message:
         self, msg_section: str, new_input: Any, override: bool = True
     ):
         """
-        Set or reset contents in an MLOPS_Message. If
+        Set or reset contents in an MLOpsMessage. If
         override is not passed, new user input will override
         any previous input
 
-        :param msg_section: The MLOPS_Message item to change
+        :param msg_section: The MLOpsMessage item to change
         :type msg_section: str
         :param new_input: The new user input for the item
         :type new_input: Any
@@ -328,4 +328,4 @@ class MLOPS_Message:
                             new_input,
                         ]
         else:
-            logging.info(f"{msg_section} is not recognized in MLOPS_Message.")
+            logging.info(f"{msg_section} is not recognized in MLOpsMessage.")

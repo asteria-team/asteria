@@ -15,7 +15,7 @@ import logging
 import subprocess
 from typing import List, Union
 
-from ..messaging import MLOPS_Message
+from ..messaging import MLOpsMessage
 from .kafka_wrapper import (
     _kafka_close_consumer,
     _kafka_close_producer,
@@ -160,18 +160,18 @@ class Producer:
             self.topic = None
 
     def send(
-        self, message: MLOPS_Message = MLOPS_Message(), flush: bool = False
+        self, message: MLOpsMessage = MLOpsMessage(), flush: bool = False
     ):
         """
         Directs producer class messages
 
         :param message: the message to send via the orchestrator
-        :type message: MLOPS_Message
+        :type message: MLOpsMessage
         :param flush: Determines whether or not to immediately push
                 message to kafka broker and block thread until acks
         :type flush: bool
         """
-        if isinstance(message, MLOPS_Message):
+        if isinstance(message, MLOpsMessage):
             if self.orchestrator == "kafka":
                 if message.get_topic() is not None:
                     _kafka_send_message(
@@ -190,7 +190,7 @@ class Producer:
                     f"Message from: {message.get_creator()} with message: {message.get_user_message()} not sent. No Orchestrator"
                 )
         else:
-            logging.error("Message passed was not a MLOPS_Message")
+            logging.error("Message passed was not a MLOpsMessage")
 
     def flush(self) -> bool:
         """
@@ -311,14 +311,14 @@ class Consumer:
 
     def get_messages(
         self, filter: callable = lambda _: True, **kwargs
-    ) -> MLOPS_Message or List[MLOPS_Message]:
+    ) -> MLOpsMessage or List[MLOpsMessage]:
         """
         Get messages from wherever the consumer is subscribed. If
         the consumer is not subscribed anywhere, it will be set to
         the default subscription for the particular orchestrator
 
         :param filter: a function to filter incoming messages. Must
-                result in a bool and called on an MLOPS_message.
+                result in a bool and called on an MLOpsMessage.
                 Examples: `lambda msg: msg.get_topic()=="Pipeline"`
                           `lambda msg: msg.get_creator_type()=="ingestor"
                                     and msg.get_output() is not None
@@ -329,9 +329,9 @@ class Consumer:
                 the timeout in ms for the kafka poll
         :param **kwargs: Any
 
-        :return: the latest message(s) in MLOPS_Message format that
+        :return: the latest message(s) in MLOpsMessage format that
                 satisfy the filter passed
-        :rtype: MLOPS_Message or List[MLOPS_Message]
+        :rtype: MLOpsMessage or List[MLOpsMessage]
         """
         if self.orchestrator == "kafka":
             # ensure consumer is subscribed to at least one topic

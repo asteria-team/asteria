@@ -12,7 +12,7 @@ from kafka import KafkaConsumer, KafkaProducer
 from kafka.errors import KafkaError, KafkaTimeoutError
 from kafka.structs import TopicPartition
 
-from ..messaging import MLOPS_Message, json_deserializer, json_serializer
+from ..messaging import MLOpsMessage, json_deserializer, json_serializer
 
 # -----------------------------------------------
 # Helper Functions
@@ -33,23 +33,23 @@ def _check_connection(client) -> bool:
 
 def _convert_kafka_record(
     tp: TopicPartition, msg: Dict[str, Any]
-) -> MLOPS_Message:
+) -> MLOpsMessage:
     """
     Take elements of the Kafka record returned by a consumer poll
-    and coverts it to an MLOPS_Message for easier use
+    and coverts it to an MLOpsMessage for easier use
 
     :param topic: the topic information for the message (where it was sent)
     :type topic: kafka.structs.TopicPartition
     :param msg: the resulting dictionary that contains the message data
     :type msg: Dict[str, Any]
 
-    :return: An MLOPS_Message
-    :rtype: MLOPS_Message
+    :return: An MLOpsMessage
+    :rtype: MLOpsMessage
     """
     if "no_message" in msg.keys():
         logging.info("No message passed to kafka record")
-        return MLOPS_Message()
-    return MLOPS_Message(
+        return MLOpsMessage()
+    return MLOpsMessage(
         msg["msg_type"],
         topic=tp.topic,
         creator=msg["creator"],
@@ -65,7 +65,7 @@ def _convert_kafka_record(
 
 def _filter_and_convert_messages(
     msg_records: Dict[TopicPartition, List[Dict[str, Any]]], filter: callable
-) -> List[MLOPS_Message]:
+) -> List[MLOpsMessage]:
     """filter and convert messages from a kafka consumer poll"""
     poll_msgs = []
     for topic, msgs in msg_records.items():
@@ -179,7 +179,7 @@ def _send_success(metadata):
 def _kafka_send_message(
     prod: KafkaProducer,
     topic: str or List[str],
-    msg: MLOPS_Message,
+    msg: MLOpsMessage,
     flush: bool = False,
 ):
     """send a message to a topic(s) with the KafkaProducer"""
@@ -248,7 +248,7 @@ def _kafka_subscribe(con: KafkaConsumer, topic: str or List[str]):
 
 def _kafka_poll_messages(
     con: KafkaConsumer, filter: callable, **kwargs
-) -> List[MLOPS_Message]:
+) -> List[MLOpsMessage]:
     """Pull messages from kafka logs that consumer is subscribed to"""
     try:
         if _check_connection(con):
