@@ -1,9 +1,9 @@
 from .messaging import (
-    Stages,
     MessageBuilder,
+    MessageDeserializer,
     MessageType,
     MLOpsMessage,
-    MessageDeserializer,
+    Stages,
 )
 from .serialize import _json_deserializer, _json_serializer
 

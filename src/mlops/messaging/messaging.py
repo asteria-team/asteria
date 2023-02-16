@@ -174,7 +174,7 @@ class MessageBuilder:
                 passed for this parameter, it will default to 'OTHER'
     :type msg_type: MessageType
     :param topic: the topic/stream/log to publish the message to
-            This will be set when a message is sent
+            This is recommended for consumer filtering purposes
     :type topic: Union[str, List[str]]
     :param creator: the user passed name or id for the creator
     :type creator: str
@@ -291,18 +291,23 @@ class MessageBuilder:
             add_data=self._additional_data,
         )
 
+
 class MessageDeserializer:
     def __init__(self, serial_msg: bytearray):
         self.json = _json_deserializer(serial_msg)
-    
+
     def __call__(self):
         return (
             MessageBuilder()
-            .with_msg_type(MessageType(self.json['msg_type']))
+            .with_msg_type(MessageType(self.json["msg_type"]))
             .with_topic(self.json["topic"])
             .with_creator(self.json["creator"])
             .with_creator_type(self.json["creator_type"])
-            .with_stage(Stages(self.json["stage"]) if self.json["stage"] is not None else None)
+            .with_stage(
+                Stages(self.json["stage"])
+                if self.json["stage"] is not None
+                else None
+            )
             .with_next_task(self.json["next_task"])
             .with_user_msg(self.json["usr_msg"])
             .with_retries(int(self.json["retries"]))
@@ -333,7 +338,7 @@ class MLOpsMessage:
         """
         self.kwargs = kwargs
 
-    """ Message conversion for sending and recieving """
+    """ Message conversion for sending """
 
     def to_json(self):
         """Create a JSON of the MLOpsMessage"""
@@ -354,16 +359,6 @@ class MLOpsMessage:
     def json_serialization(self):
         """Serialize a MLOpsMessage to send to orchestrator"""
         return _json_serializer(self.to_json())
-
-    def json_deserialization(self):
-        """
-        Deserialize a MLOpsMessage recieved from an orchestrator.
-        Note that the current instantiation of an MLOpsMessage
-        when this is called is a json bytearray. It will be
-        deserialized and the resulting dictionary will be the
-        internally tracked keyword arguments
-        """
-        self.kwargs = _json_deserializer(self)
 
     """ Read data from the message """
 
