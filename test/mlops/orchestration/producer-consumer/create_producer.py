@@ -2,41 +2,43 @@
 Test producer in context of kafka orchestration docker-compose
 """
 
-from mlops.messaging import MessageType, MLOpsMessage
-from mlops.orchestration import Producer
+import mlops.messaging as mes
+import mlops.orchestration as orc
 
-orch = "kafka"
+orchestrator = "kafka"
 dc_endpoint = "kafka:9092"
 
 
 def test_kafka_producer():
     """Test sending messages to kafka"""
-    new_prod = Producer(
-        topic="Cool-New-Topic",
-        orchestrator=orch,
-        orchestrator_endpoint=dc_endpoint,
-    )
-    mlops_msg = MLOpsMessage(
-        MessageType.START,
-        creator="ingest",
-        user_message="Hello World",
-        output="/dataset/data",
-    )
-    new_prod.send(mlops_msg)
-    new_prod.send(mlops_msg)
-    assert new_prod.flush()
+    orch = orc.Orchestration(orchestrator, dc_endpoint)
+    new_prod = orc.Producer(orch, "Cool-New-Topic")
 
-    """ Test sending a message to multiple topics """
-    new_prod2 = Producer(
-        ["Cool-New-Topic", "Sick-Topic"],
-        orch,
-        dc_endpoint,
+    test_msg = "Hello World"
+    msg_builder = mes.MessageBuilder()
+    mlops_msg = (
+        msg_builder.with_msg_type(mes.MessageType.COMPLETE)
+        .with_creator_type("ETL")
+        .with_creator("ETL")
+        .with_user_msg(test_msg)
+        .with_next_task("Train")
+        .with_output("/dataset/data")
+        .build()
     )
-    mlops_msg2 = MLOpsMessage(
-        MessageType.COMPLETE,
-        creator="training",
-        user_message="Hello Pipeline",
-        output="/dataset/data",
+
+    new_prod.send(mlops_msg)
+    new_prod.send(mlops_msg, True)
+    new_prod.close()
+
+    """ Test sending a message to multiple topics with auto discovery """
+    new_prod2 = orc.Producer(topic=["Cool-New-Topic", "Sick-Topic"])
+    msg_builder2 = mes.MessageBuilder()
+    mlops_msg2 = (
+        msg_builder2.with_msg_type(mes.MessageType.INPROGRESS)
+        .with_creator("training")
+        .with_user_msg("Hello Pipeline")
+        .with_output("/dataset/data")
+        .build()
     )
     new_prod2.send(mlops_msg2)
 

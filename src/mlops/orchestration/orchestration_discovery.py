@@ -2,7 +2,7 @@
 
 from typing import Dict, List, Tuple, Union
 
-from .kafka import KA
+from kafka import KafkaClient
 
 # ----------------------------------------------------------
 # Orchestration Related Variables
@@ -21,7 +21,7 @@ ORCHESTRATORS = ["kafka", "rabbitmq"]
 
 def _get_orchestrator(
     connect_dict: Dict[str, Union[str, List[str]]] = CONNECTIONS
-) -> Tuple(str, str):
+) -> Tuple[str, str]:
     """
     Determines if an orchestrator is present and up and
     returns the name and endpoint of the orchestrator to allow
@@ -44,8 +44,8 @@ def _get_orchestrator(
                 endpoint = [endpoint]
             for end in endpoint:
                 # call a KafkaAdmin instance and validate connection
-                conn_client = KA(end)
-                if conn_client.validate_connection():
+                conn_client = KafkaClient(end)
+                if conn_client.bootstrap_connected():
                     conn_client.close()
                     return orch, end
         # eventually add additional supported orchestrators.

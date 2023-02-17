@@ -173,8 +173,7 @@ class Consumer:
         :param filter: a function to filter incoming messages. Must
                 result in a bool and called on an MLOpsMessage.
                 Examples: `lambda msg: msg.topic=="Pipeline"`
-                          `lambda msg: msg.creator_type=="ingestor"
-                                    and msg.output is not None
+                          `lambda msg: msg.creator_type=="ingestor" and msg.output is not None`
         :type filter: callable
         :param **kwargs: additional data to pass to the various underlying
                 functions to drive how messages are retrieved. Currently

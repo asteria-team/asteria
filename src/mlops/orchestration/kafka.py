@@ -186,7 +186,7 @@ def _send_success(metadata):
     )
 
 
-def _validate_topic(topic: Union[str, List(str)]) -> bool:
+def _validate_topic(topic: Union[str, List[str]]) -> bool:
     """Ensure user passed topics meet kafka requirements ()"""
     if isinstance(topic, str):
         topic = [topic]
