@@ -1,0 +1,7 @@
+chardet==5.1.0
+charset-normalizer==3.0.1
+distlib==0.3.6
+exceptiongroup==1.1.0
+jsonschema==3.2.0
+kafka-python==2.0.2
+typing-extensions==4.4.0
