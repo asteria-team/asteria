@@ -63,6 +63,7 @@ ALLOWED_PRODUCERS_CONSUMERS = {
     "backend": backend_opts,
     "mlops": mlops_opts,
     "monitor": monitor_opts,
+    "unknown": ["unknown"],
 }
 
 # Message format limitations

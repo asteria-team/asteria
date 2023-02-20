@@ -17,7 +17,7 @@ from typing import List, Union
 
 from ..messaging import MLOpsMessage
 from .kafka import KA, KC, KP
-from .orchestration_discovery import Orchestration
+from .orchestration_discovery import Orchestration, OrchestrationBuilder
 
 # ------------------------------------------------
 # Message Classes
@@ -29,7 +29,7 @@ class Producer:
 
     def __init__(
         self,
-        orchestration: Orchestration = Orchestration(),
+        orchestration: Orchestration = OrchestrationBuilder().build(),
         topic: Union[str, List[str]] = None,
         **kwargs,
     ):
@@ -102,7 +102,7 @@ class Consumer:
     def __init__(
         self,
         subscription: Union[str, List[str]],
-        orchestration: Orchestration = Orchestration(),
+        orchestration: Orchestration = OrchestrationBuilder().build(),
         **kwargs,
     ):
         """
@@ -160,7 +160,7 @@ class Consumer:
                 if isinstance(subscription, list):
                     self.subscription = subscription.append(self.subscription)
                 else:
-                    self.subscription = list(self.subscription, subscription)
+                    self.subscription = [self.subscription, subscription]
 
         self.consumer.subscribe(self.subscription)
 
@@ -203,7 +203,7 @@ class Admin:
 
     def __init__(
         self,
-        orchestration: Orchestration = Orchestration(),
+        orchestration: Orchestration = OrchestrationBuilder().build(),
         **kwargs,
     ):
         """

@@ -12,7 +12,10 @@ def test_kafka_consumer():
     """Test reading messages to kafka"""
     new_con = orc.Consumer(
         "Cool-New-Topic",
-        orc.Orchestration(orch, dc_endpoint),
+        orc.OrchestrationBuilder()
+        .with_orchestrator(orch)
+        .with_connection(dc_endpoint)
+        .build(),
         auto_offset_reset="earliest",
     )
 
@@ -25,7 +28,7 @@ def test_kafka_consumer():
     assert msgs[0].output == "/dataset/data"
     assert msgs[0].next_task == "Train"
 
-    """ Check that a filter on a topic with o messages returns nothing """
+    """ Check that a filter on a topic without messages returns nothing """
     msgs = new_con.recieve(filter=lambda msg: msg.topic == "Another-Topic")
     assert msgs == []
     new_con.close()

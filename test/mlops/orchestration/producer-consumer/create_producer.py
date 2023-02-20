@@ -11,7 +11,12 @@ dc_endpoint = "kafka:9092"
 
 def test_kafka_producer():
     """Test sending messages to kafka"""
-    orch = orc.Orchestration(orchestrator, dc_endpoint)
+    orch = (
+        orc.OrchestrationBuilder()
+        .with_orchestrator(orchestrator)
+        .with_connection(dc_endpoint)
+        .build()
+    )
     new_prod = orc.Producer(orch, "Cool-New-Topic")
 
     test_msg = "Hello World"

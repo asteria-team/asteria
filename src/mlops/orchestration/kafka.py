@@ -207,7 +207,7 @@ def _filter_and_convert_messages(
     for _, msgs in msg_records.items():
         for msg in msgs:
             # convert first for more generalizable filter capability
-            mlops_data = MessageDeserializer(msg)
+            mlops_data = MessageDeserializer(msg.value)
             mlops_msg = mlops_data()
             if filter(mlops_msg):
                 poll_msgs.append(mlops_msg)

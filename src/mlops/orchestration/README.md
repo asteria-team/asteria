@@ -1,37 +1,35 @@
 ## Orchestration Library for the MLOPS Pipeline
 
-The orchestration library for the MLOPS Pipeline acts as a wrapper layer to allow the user to run the same code regardless of the underlying orchestration infrastructure. This library exposes three classes: Producer, Consumer, Admin. The Producer allows the user to send messages, the Consumer alloes the user to recieve messages, and the Admin allows the user to get orchestration related metadata. ***Currently there is no support for the Admin class. Updates will be coming soon.***
+The orchestration library for the MLOPS Pipeline acts as a wrapper layer to allow the user to run the same code regardless of the underlying orchestration infrastructure. This library exposes three classes: Producer, Consumer, Admin. The Producer allows the user to send messages, the Consumer alloes the user to recieve messages, and the Admin allows the user to get orchestration related metadata. ***Currently there is limited support for the Admin class. Updates will be coming soon.***
 
 ### Library Use
 
 If the user wants to utilize underlying orchestration in the MLOPS pipeline, the orchestration library provides a way to do that with code that is independent of the orchestrator. The purpose of using the orchestration is to allow the pipeline to operate asynchronously and without human intervention except when absolutely necessary. The use of the Producer and Consumer allows separate phases of the pipeline to automatically start upon reciept of particular messages.
 
-If connections cannot be made or no underlying orchestration exists, calls to the Producer and Consumer will not fail. Instead, logging alerts will occur. This is to prevent orchstration errors from causing the whole pipeline to fail.
+If connections cannot be made or no underlying orchestration exists, calls to the Producer and Consumer will fail with logging alerts to inform the user of either a lack of an orchestrator or bad orchstrator data passed during the build of a Producer or Consumer.
 
 #### Producer
 
-The Producer is used to send messages to the orchestrator. It can be called without any user input and will automatically detect the underlying orchestrator in that case and connect to it. If the orchestrator is not in a normally accessed location (for example Kafka is generally located at `"kafka:9092"` in the context of a docker or docker-compose) the user must pass the name and endpoint of the orchestrator in order to allow the Producer to connect and send messages. In addition, the user can pass topics the Producer should write messages to and additional key word arguments that can be passed to the underlying orchestration specific function to better control the behavior of the Producer.
+The Producer is used to send messages to the orchestrator. It can be called without any user input and will automatically detect the underlying orchestrator in that case and connect to it. If the orchestrator is not in a normally accessed location (for example Kafka is generally located at `"kafka:9092"` in the context of a docker or docker-compose) the user must pass an instance of the Orchestration class which can be created with the OrchestrationBuilder in order to allow the Producer to connect and send messages. In addition, the user can pass topics the Producer should write messages to and additional key word arguments that can be passed to the underlying orchestration specific function to better control the behavior of the Producer.
 
-The Producer has three methods: *send*, *flush*, and *close*. Send will push messages to the orchestrator. If specific message content needs to be passed, the user needs to pass an MLOpsMessage. If the desire is to run the producer completely synchronous, the user can set the flush flag to `True`. However, note that this will cause the Producer to block until it confirms that the message(s) have been sent and propogated to the orchestrator and will cause problems if more messages need to be sent. Without flush, messages will send asynronously and the Producer can continue to send messages normally. 
-
-The flush method does the same task that a `True` flush flag in send does, but it can be used when the Producer is complete with all of its messages and the user wants to ensure all messages propgate. This is unnecessary in most cases.
+The Producer has two methods: *send* and *close*. Send will push messages to the orchestrator. If specific message content needs to be passed, the user needs to pass an MLOpsMessage. If the desire is to run the producer completely synchronous, the user can set the flush flag to `True`. However, note that this will cause the Producer to block until it confirms that the message(s) have been sent and propogated to the orchestrator and will cause problems if more messages need to be sent on that Producer. Without flush, messages will send asynronously and the Producer can continue to send messages normally. 
 
 The close method will diconnect the Producer from the orchestrator and can be called once the user is done with the Producer completely.
 
 
 #### Consumer
 
-The Consumer is used to send messages to the orchestrator. It can be called without any user input and will automatically detect the underlying orchestrator in that case and connect to it. If the orchestrator is not in a normally accessed location (for example Kafka is generally located at `"kafka:9092"` in the context of a docker or docker-compose) the user must pass the name and endpoint of the orchestrator in order to allow the Consumer to connect and send messages. In addition, the user can pass topics the Consumer should subscribe to and additional key word arguments that can be passed to the underlying orchestration specific function to better control the behavior of the Consumer.
+The Consumer is used to send messages to the orchestrator. It can be called with just a subscription (the ocation it should look to pull messages from) and will automatically detect the underlying orchestrator if it can. If the orchestrator is not in a normally accessed location (for example Kafka is generally located at `"kafka:9092"` in the context of a docker or docker-compose) the user must pass an instance of the Orchestration class which can be created with the OrchestrationBuilder in order to allow the Consumer to connect and send messages. In addition, additional key word arguments that can be passed to the underlying orchestration specific function to better control the behavior of the Consumer.
 
-The Consumer has five methods: *subscribe*, *unsubscribe*, *get_subscriptions*, *get_messages*, and *close*. As with the Producer, close will disconnect the Consumer from the orchestrator and should only be called when the user is completely done with the consumer. 
+The Consumer has three methods: *subscribe*, *recieve*, and *close*. As with the Producer, close will disconnect the Consumer from the orchestrator and should only be called when the user is completely done with the consumer. 
 
-The three subscribe methods help the user manage what topic(s) the consumer will pull from when getting messages. Subscribe allows the user to add or override where the Consumer pulls messages from. Note that subscriptions add after initialization my impact what messages the Consumer gets. Unsubscribe removes all subscriptions for the Consumer. Until a new subscription is added, the Consumer will be unable to get messages. The final method allows a user to see a list of what the consumer is currently subscribed to. No subscriptions return an empty list.
+The subscribe method allows a user to add or override subscriptions over the course of the Consumer's existence. This may be useful if a mistake was made during creation or a specific trigger changes where the Consumer should look.
 
-The final method *get_messages* is how the Consumer pulls messages from the orchestrator. It takes a callable filter that defaults to `True` (in other words all messages are returned). The filter can help reduce the number of messages being returned by only returning relevant data. The filter should use the MLOpsMessage class methods to interact with the messages. 
+The final method *recieve* is how the Consumer pulls messages from the orchestrator. It takes a callable filter that defaults to `True` (in other words all messages are returned). The filter can help reduce the number of messages being returned by only returning relevant data. The filter should use the MLOpsMessage class methods to interact with the messages. 
 
 #### Use with Kafka
 
-One orchestrator option is Kafka. All Producer and Consumer methods can be used with Kafka. The kafka-python library is being used under the hood. This is important to know if the user wants to adjust the default behaviors of the Producers and Consumers. More information about keyword arguments that can be passed can be found at [KafkaProducer](https://kafka-python.readthedocs.io/en/master/apidoc/KafkaProducer.html) and [KafkaConsumer](https://kafka-python.readthedocs.io/en/master/apidoc/KafkaConsumer.html). Note that during initialization for the Producer `bootstrap_servers` and `value_serializer` are already passed. For Consumer initialization `bootstrap_servers` and `value_deserializer` are passed as well as subscription if provided.
+One orchestrator option is Kafka. All Producer and Consumer methods can be used with Kafka. The kafka-python library is being used under the hood. This is important to know if the user wants to adjust the default behaviors of the Producers and Consumers. More information about keyword arguments that can be passed can be found at [KafkaProducer](https://kafka-python.readthedocs.io/en/master/apidoc/KafkaProducer.html) and [KafkaConsumer](https://kafka-python.readthedocs.io/en/master/apidoc/KafkaConsumer.html). Note that during initialization for the Producer and Consumer `bootstrap_servers` is already passed and serialization and deserialization are handled by the messaging library.
 
 The following are some commonly used keyword arguments for kafka:
 
@@ -63,17 +61,16 @@ import mlops.orchestration as orc
 new_prod = orc.Producer("Cool-New-Topic")
 
 # Producer gets orchestrator passed with multiple topics and additional keyword arguments
-new_prod2 = orc.Producer(
-        topic=["Cool-New-Topic", "Another-Topic"],
-        orchestrator="kafka",
-        orchestrator_endpoint="kafka:9092"
-        acks="all",
-        max_request_size=20000
+orch = (
+        orc.OrchestrationBuilder()
+        .with_orchestrator(orchestrator)
+        .with_connection(dc_endpoint)
+        .build()
     )
+new_prod = orc.Producer(orch, "Cool-New-Topic", acks="all", max_request_size=20000)
 
 # Send a message. Note mlops_msg is an instance of the MLOpsMessage class
 new_prod.send(mlops_msg)
-new_prod2.send(mlops_msg)
 ```
 #### Consumer
 
@@ -86,11 +83,13 @@ import mlops.orchestration as orc
 new_con = orc.Consumer("Cool-New-Topic", auto_offset_reset="earliest")
 
 # Consumer gets orchestrator passed with multiple topics to subscribe to
-new_con2 = orc.Consumer(
-        ["Cool-New-Topic", "some-other-topic"],
-        "kafka",
-        "kafka:9092"
+orch = (
+        orc.OrchestrationBuilder()
+        .with_orchestrator(orchestrator)
+        .with_connection(dc_endpoint)
+        .build()
     )
+new_con = orc.Consumer(["Cool-New-Topic", "some-other-topic"], orch)
 
 # subscribe to another topic
 new_con2.subscribe("a-3rdTopic")
@@ -103,6 +102,5 @@ while True:
         # Some messages were recieved
         # Do something
 
-    time.sleep(10)
     # try getting messages again
 ```

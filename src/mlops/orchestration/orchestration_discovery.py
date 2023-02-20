@@ -44,7 +44,7 @@ def _get_orchestrator(
                 endpoint = [endpoint]
             for end in endpoint:
                 # call a KafkaAdmin instance and validate connection
-                conn_client = KafkaClient(end)
+                conn_client = KafkaClient(bootstrap_servers=end)
                 if conn_client.bootstrap_connected():
                     conn_client.close()
                     return orch, end
@@ -69,6 +69,35 @@ def _format_orchestration(
 # --------------------------------------------------------------
 
 
+class OrchestrationBuilder:
+    """
+    The builder class for the orchestration tool
+    """
+
+    def __init__(self):
+        self._orchestrator = None
+        self._connection = None
+
+    def with_orchestrator(self, orchestrator: str):
+        """Add orchestrator name"""
+        self._orchestrator = orchestrator
+        return self
+
+    def with_connection(self, endpoint: Union[str, List[str]]):
+        """Add endpoint(s) that the orchestrator can connect to"""
+        self._connection = endpoint
+        return self
+
+    def build(self):
+        if self._orchestrator is None or self._connection is None:
+            orch, end = _get_orchestrator()
+        else:
+            orch, end = _get_orchestrator(
+                _format_orchestration(self._orchestrator, self._connection)
+            )
+        return Orchestration(orchestrator=orch, connection=end)
+
+
 class Orchestration:
     """
     The Orchestration object that can be passed to any of the
@@ -76,13 +105,13 @@ class Orchestration:
     connect to the underlying orchestrator.
     """
 
-    def __init__(
-        self, orchestrator: str = None, endpoint: Union[str, List[str]] = None
-    ):
+    def __init__(self, **kwargs):
         """
-        Build the Orchestration object. This can be built
-        without any input, but this requires the orchestrator
-        exists at one of its default or common endpoints
+        The Orchestration object. This can be built by the
+        OrchestrationBuilder without any input, but this requires
+        the orchestrator exists at one of its default or common
+        endpoints. The build will manage finding and validating
+        endpoints
 
         :param orchestrator: The name of the orchestrator. Must be
                 a supported orchestrator
@@ -91,22 +120,14 @@ class Orchestration:
                 client can use to connect to the underlying orchestrator
         :endpoint type: Union[str, List[str]]
         """
-        try:
-            if orchestrator is None or endpoint is None:
-                orch, end = _get_orchestrator()
-            else:
-                orch, end = _get_orchestrator(
-                    _format_orchestration(orchestrator, endpoint)
-                )
-            self.orchestrator = orch
-            self.connection = end
-        except Exception as e:
-            raise ValueError(f"Invalid orchestrator information passed: {e}")
+        self.kwargs = kwargs
 
     @property
     def orchestrator(self):
-        return self.orchestrator
+        """Get the orchestrator name"""
+        return self.kwargs["orchestrator"]
 
     @property
     def connection(self):
-        return self.connection
+        """Get the endpoint"""
+        return self.kwargs["connection"]
